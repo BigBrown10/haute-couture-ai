@@ -113,8 +113,8 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
                         const iDom = i / total;
                         const uDom = u / total;
 
-                        // Only apply the loudest shape to avoid mixing them into a giant open mouth!
-                        const envelope = Math.min(1.0, volume * 8.0);
+                        // Only apply the loudest shape and severely dampen the multiplier so it doesn't just gape open!
+                        const envelope = Math.min(1.0, volume * 3.5);
                         const isA = aDom > 0.4;
                         const isI = iDom > 0.4;
                         const isU = uDom > 0.4;

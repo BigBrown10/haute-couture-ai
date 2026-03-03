@@ -88,16 +88,19 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
         scene.add(spotLight.target);
 
         // --- Digital Runway Stage (Podium) ---
-        const podiumGeo = new THREE.CylinderGeometry(0.8, 0.85, 0.1, 64);
+        // Premium, small, sleek runway disc
+        const podiumGeo = new THREE.CylinderGeometry(0.45, 0.48, 0.06, 64);
         const podiumMat = new THREE.MeshStandardMaterial({
-            color: 0xcfb53b, // Gold
-            metalness: 0.8,
-            roughness: 0.2
+            color: 0xffd700, // Richer Gold
+            metalness: 0.9,
+            roughness: 0.15
         });
         const podium = new THREE.Mesh(podiumGeo, podiumMat);
-        // VRM feet inherently rest precisely at Y=0. 
-        // We move the podium down by half its height so its top surface sits exactly at Y=0.
-        podium.position.y = -0.05;
+
+        // Lift the entire set (avatar + podium) UP by 0.35 units. 
+        // This ensures the feet and podium sit cleanly above the bottom HTML UI!
+        const globalYShift = 0.35;
+        podium.position.y = globalYShift - 0.03; // subtract half height so its surface is precisely at globalYShift
         scene.add(podium);
 
         // --- Asset Loading ---
@@ -120,6 +123,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                         vrmRef.current = vrm;
                         scene.add(vrm.scene);
                         vrm.scene.rotation.y = Math.PI;
+                        vrm.scene.position.y = globalYShift; // Lift the avatar to stand exactly on the shifted podium
 
                         // Remove static raw bone assignment here, it gets overwritten.
                         // We will enforce the relaxed pose and procedural animation inside the render loop.
@@ -209,7 +213,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                     // 2. Lifelike Arm Posings (Bent elbows, natural resting, asymmetrical gestures)
                     const leftArm = currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm');
                     if (leftArm) {
-                        leftArm.rotation.z = 1.15; // Drop arm natively
+                        leftArm.rotation.z = 0.85; // Relaxed drop (prevents clipping through vests/jackets)
                         leftArm.rotation.x = 0.15; // Point slightly forward
                         leftArm.rotation.y = -0.1; // Twist slightly inward
                     }
@@ -224,7 +228,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
 
                     const rightArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
                     if (rightArm) {
-                        rightArm.rotation.z = -1.15; // Drop arm
+                        rightArm.rotation.z = -0.85; // Relaxed drop
                         rightArm.rotation.x = 0.15;  // Point slightly forward
                         rightArm.rotation.y = 0.1;   // Twist slightly inward
                     }
