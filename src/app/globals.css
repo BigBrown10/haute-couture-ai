@@ -799,6 +799,273 @@ body {
   max-width: 240px;
 }
 
+/* ── Check-My-Fit Style Avatar Landing ──────────────────── */
+.landing-content-wide {
+  max-width: 1200px;
+  width: 100%;
+  padding: var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.avatars-container {
+  display: flex;
+  gap: var(--space-xl);
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: var(--space-2xl);
+}
+
+.avatar-card {
+  width: 260px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all var(--duration-normal) var(--ease-out-expo);
+  opacity: 0.6;
+  filter: grayscale(0.8);
+}
+
+.avatar-card:hover {
+  opacity: 0.9;
+  filter: grayscale(0.3);
+  transform: translateY(-5px);
+}
+
+.avatar-card.selected {
+  opacity: 1;
+  filter: grayscale(0);
+  border-color: var(--color-gold);
+  box-shadow: var(--shadow-glow-gold);
+  transform: translateY(-8px) scale(1.02);
+}
+
+.avatar-image {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  display: block;
+}
+
+.avatar-info {
+  padding: var(--space-md);
+  text-align: center;
+}
+
+.avatar-info h3 {
+  font-family: var(--font-serif);
+  font-size: 1.4rem;
+  margin-bottom: var(--space-xs);
+  color: var(--text-primary);
+}
+
+.avatar-info p {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+.selected-persona-details {
+  max-width: 600px;
+  text-align: center;
+  padding: var(--space-xl);
+  animation: fadeInUp var(--duration-normal) var(--ease-out-expo);
+}
+
+.selected-persona-details h2 {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  margin-bottom: var(--space-md);
+  background: linear-gradient(135deg, var(--color-gold-bright), var(--color-rose));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.selected-persona-details p {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: var(--text-secondary);
+  margin-bottom: var(--space-xl);
+}
+
+/* ── Active Call UI (Voice-Only Mode) ───────────────────── */
+.active-call-ui {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-xl);
+  padding: var(--space-2xl);
+}
+
+.avatar-ring {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.active-avatar-img {
+  width: 180px;
+  height: 180px;
+  border-radius: 50%;
+  object-fit: cover;
+  z-index: 2;
+  border: 4px solid var(--bg-dark);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+}
+
+.ring-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid var(--color-gold);
+  opacity: 0;
+  z-index: 1;
+}
+
+.avatar-ring.connecting .active-avatar-img {
+  filter: grayscale(1) opacity(0.5);
+}
+
+.avatar-ring.connecting .ring-pulse {
+  animation: ringPulse 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  border-color: var(--color-ice);
+}
+
+.avatar-ring.thinking .ring-pulse {
+  animation: ringPulseFast 1s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  border-color: var(--color-violet);
+}
+
+.avatar-ring:not(.connecting):not(.thinking) .ring-pulse {
+  /* Speaking / Listening state */
+  animation: ringPulse 3s cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  border-color: var(--color-gold);
+  border-width: 4px;
+}
+
+.active-call-info {
+  text-align: center;
+  padding: var(--space-lg) var(--space-2xl);
+  border-radius: var(--radius-xl);
+}
+
+.active-call-info h2 {
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  margin-bottom: var(--space-xs);
+  letter-spacing: 0.05em;
+}
+
+.call-status {
+  font-size: 1rem;
+  color: var(--color-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 600;
+}
+
+/* ── Hero Outfit Gallery (Overlays the active call) ─────── */
+.outfit-gallery.has-content {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  background: rgba(10, 10, 15, 0.85);
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  display: flex;
+  align-items: center;
+  padding: 0 5vw;
+  gap: var(--space-2xl);
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-gold-dim) transparent;
+}
+
+.outfit-hero-card {
+  position: relative;
+  width: 45vw;
+  max-width: 600px;
+  min-width: 320px;
+  height: 85vh;
+  border-radius: 32px;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.4s var(--ease-out-expo);
+  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--color-gold-dim);
+}
+
+.outfit-hero-card:hover {
+  transform: scale(1.02) translateY(-10px);
+  border-color: var(--color-gold);
+}
+
+.outfit-hero-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.outfit-hero-caption {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  right: 24px;
+  padding: var(--space-lg);
+  border-radius: 20px;
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.outfit-hero-caption strong {
+  display: block;
+  font-size: 1.3rem;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  color: white;
+}
+
+.outfit-hero-caption p {
+  font-size: 0.9rem;
+  color: var(--color-gold-bright);
+}
+
+/* ── Keyframes ──────────────────────────────────────────── */
+@keyframes ringPulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes ringPulseFast {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+
+  100% {
+    transform: scale(1.2);
+    opacity: 0;
+  }
+}
+
 /* ── Keyframe Animations ────────────────────────────────── */
 @keyframes fadeIn {
   from {

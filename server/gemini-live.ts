@@ -7,7 +7,7 @@
  */
 
 import { GoogleGenAI, type Session, type LiveServerMessage, type Content } from '@google/genai';
-import { PERSONA_SYSTEM_PROMPT, DESIGNER_SYSTEM_PROMPT, GENERATE_OUTFIT_TOOL, GENERATE_SKETCH_TOOL, SAFETY_SETTINGS } from './persona-prompt';
+import { PERSONA_SYSTEM_PROMPT, DESIGNER_SYSTEM_PROMPT, TONY_SYSTEM_PROMPT, GINA_SYSTEM_PROMPT, GENERATE_OUTFIT_TOOL, GENERATE_SKETCH_TOOL, SAFETY_SETTINGS } from './persona-prompt';
 import { generateOutfitImage, generateFashionSketch } from './vision-pipeline';
 
 const LIVE_MODEL = 'gemini-2.5-flash-native-audio-latest';
@@ -50,12 +50,21 @@ export class GeminiLiveSession {
             const isDesigner = this.mode === 'designer';
             this.callbacks.onThinking(`Connecting to Gemini Live API (${isDesigner ? 'Designer' : 'Stylist'} Mode)...`);
 
+            let systemPrompt = PERSONA_SYSTEM_PROMPT;
+            if (isDesigner) {
+                systemPrompt = DESIGNER_SYSTEM_PROMPT;
+            } else if (this.voiceName === 'Zephyr') {
+                systemPrompt = TONY_SYSTEM_PROMPT;
+            } else if (this.voiceName === 'Aoede') {
+                systemPrompt = GINA_SYSTEM_PROMPT;
+            }
+
             this.session = await genAI.live.connect({
                 model: LIVE_MODEL,
                 config: {
                     responseModalities: ['AUDIO'] as any,
                     systemInstruction: {
-                        parts: [{ text: isDesigner ? DESIGNER_SYSTEM_PROMPT : PERSONA_SYSTEM_PROMPT }],
+                        parts: [{ text: systemPrompt }],
                     },
                     tools: [{ functionDeclarations: [isDesigner ? GENERATE_SKETCH_TOOL : GENERATE_OUTFIT_TOOL] }],
                     speechConfig: {

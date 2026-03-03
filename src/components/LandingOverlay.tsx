@@ -1,51 +1,97 @@
 'use client';
 
+import { useState } from 'react';
+
+export type PersonaId = 'despina' | 'gina' | 'tony';
+
+export interface Persona {
+    id: PersonaId;
+    name: string;
+    specialty: string;
+    description: string;
+    image: string;
+    voice: string;
+    mode: 'stylist' | 'designer';
+}
+
+export const PERSONAS: Persona[] = [
+    {
+        id: 'despina',
+        name: 'Despina',
+        specialty: 'Haute Couture & Editorial',
+        description: 'Avant-garde Parisian stylist. Brutally honest, expects perfection. Will tear your outfit apart and rebuild it.',
+        image: '/avatars/despina.png',
+        voice: 'Despina',
+        mode: 'stylist'
+    },
+    {
+        id: 'tony',
+        name: 'Tony',
+        specialty: 'Streetwear & Smart Casual',
+        description: 'Cool, modern, and effortless. Focuses on premium basics, sneakers, and clean silhouettes.',
+        image: '/avatars/tony.png',
+        voice: 'Zephyr',
+        mode: 'stylist'
+    },
+    {
+        id: 'gina',
+        name: 'Gina',
+        specialty: 'Prom & Evening Wear',
+        description: 'Glamorous and upbeat! Expert in event dressing, sequins, and making sure you steal the show.',
+        image: '/avatars/gina.png',
+        voice: 'Aoede',
+        mode: 'stylist'
+    }
+];
+
 interface LandingOverlayProps {
     exiting: boolean;
-    onStart: () => void;
+    onStart: (persona: Persona) => void;
 }
 
 export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps) {
+    const [selectedId, setSelectedId] = useState<PersonaId>('despina');
+
+    const selectedPersona = PERSONAS.find(p => p.id === selectedId)!;
+
     return (
         <div className={`landing-overlay ${exiting ? 'exiting' : ''}`}>
-            <div className="landing-card">
-                <div className="landing-icon">👁</div>
-
-                <h1 className="landing-title">Haute Couture AI</h1>
-
-                <p className="landing-subtitle">
-                    Your brutally honest Hollywood fashion stylist.
-                    <br />
-                    30 years of experience. 300+ A-list clients. Zero tolerance for mediocrity.
-                </p>
-
-                <div className="landing-features">
-                    <div className="landing-feature">
-                        <span className="landing-feature-icon">🎥</span>
-                        Live Video Critique
-                    </div>
-                    <div className="landing-feature">
-                        <span className="landing-feature-icon">🎙️</span>
-                        Voice Interaction
-                    </div>
-                    <div className="landing-feature">
-                        <span className="landing-feature-icon">✨</span>
-                        AI Outfit Generation
-                    </div>
+            <div className="landing-content-wide">
+                <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                    <h1 className="landing-title" style={{ fontSize: '3.5rem' }}>Check My Fit</h1>
+                    <p className="landing-subtitle" style={{ fontSize: '1.2rem', opacity: 0.8 }}>
+                        Select your AI stylist. Open your camera. Get brutally honest feedback and see yourself in a new perfect fit.
+                    </p>
                 </div>
 
-                <button
-                    className="glass-button landing-cta"
-                    onClick={onStart}
-                    id="begin-session"
-                >
-                    Begin Session
-                </button>
+                <div className="avatars-container">
+                    {PERSONAS.map(persona => (
+                        <div
+                            key={persona.id}
+                            className={`avatar-card ${selectedId === persona.id ? 'selected' : ''}`}
+                            onClick={() => setSelectedId(persona.id)}
+                        >
+                            <img src={persona.image} alt={persona.name} className="avatar-image" />
+                            <div className="avatar-info">
+                                <h3>{persona.name}</h3>
+                                <p>{persona.specialty}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
 
-                <p className="landing-disclaimer">
-                    This platform uses AI to provide fashion critique. The stylist persona is deliberately
-                    confrontational — prepare for unfiltered honesty. Camera and microphone access required.
-                </p>
+                <div className="selected-persona-details glass-panel">
+                    <h2>Meet {selectedPersona.name}</h2>
+                    <p>{selectedPersona.description}</p>
+                    <button
+                        className="glass-button landing-cta"
+                        onClick={() => onStart(selectedPersona)}
+                        id="begin-session"
+                        style={{ marginTop: '1.5rem', fontSize: '1.2rem', padding: '16px 32px' }}
+                    >
+                        Start Video Call with {selectedPersona.name}
+                    </button>
+                </div>
             </div>
         </div>
     );

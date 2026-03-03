@@ -3,21 +3,14 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import CameraFeed from '@/components/CameraFeed';
 import GlassControlBar from '@/components/GlassControlBar';
-import TranscriptPanel from '@/components/TranscriptPanel';
 import OutfitGallery from '@/components/OutfitGallery';
-import AgentThinking from '@/components/AgentThinking';
-import LandingOverlay from '@/components/LandingOverlay';
-import TextInput from '@/components/TextInput';
+import ActiveCallUI from '@/components/ActiveCallUI';
+import LandingOverlay, { Persona } from '@/components/LandingOverlay';
 import { useSocketConnection } from '@/hooks/useSocketConnection';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 
-export interface TranscriptMessage {
-  id: string;
-  text: string;
-  role: 'agent' | 'user';
-  timestamp: number;
-}
+// TranscriptMessage removed for voice-only mode
 
 export interface GeneratedOutfit {
   id: string;
@@ -30,22 +23,16 @@ export default function HomePage() {
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [landingExiting, setLandingExiting] = useState(false);
-  const [transcript, setTranscript] = useState<TranscriptMessage[]>([]);
   const [outfits, setOutfits] = useState<GeneratedOutfit[]>([]);
   const [thinkingStatus, setThinkingStatus] = useState<string | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState('Despina');
   const [mode, setMode] = useState<'stylist' | 'designer'>('stylist');
+  const [activePersona, setActivePersona] = useState<Persona | null>(null);
 
   const messageIdRef = useRef(0);
   const sessionActiveRef = useRef(false);
-
-  const addTranscript = useCallback((text: string, role: 'agent' | 'user') => {
-    if (!text.trim()) return;
-    const id = `msg-${Date.now()}-${messageIdRef.current++}`;
-    setTranscript((prev) => [...prev, { id, text, role, timestamp: Date.now() }]);
-  }, []);
 
   const addOutfit = useCallback((imageBase64: string | null, caption: string) => {
     const id = `outfit-${Date.now()}-${messageIdRef.current++}`;
@@ -66,11 +53,14 @@ export default function HomePage() {
     sendText,
     requestOutfit,
   } = useSocketConnection({
-    onTranscript: (text, role) => addTranscript(text, role),
+    onTranscript: (text, role) => {
+      // Transcript is hidden in UI, but we could log it or use it for triggers
+      console.log(`[Transcript] ${role}: ${text}`);
+    },
     onGeneratedOutfit: (imageBase64, caption) => addOutfit(imageBase64, caption),
     onThinking: (status) => setThinkingStatus(status || null),
     onSessionStarted: () => setSessionReady(true),
-    onError: (msg) => addTranscript(`⚠ ${msg}`, 'agent'),
+    onError: (msg) => console.error(`[Agent Error] ${msg}`),
     onInterrupted: () => {
       // Agent was interrupted by user speech — stop audio playback
       stopPlayback();
@@ -94,21 +84,25 @@ export default function HomePage() {
   );
 
   // ── Session Lifecycle ──────────────────────────────────
-  const handleStartSession = useCallback(() => {
+  const handleStartSession = useCallback((persona: Persona) => {
+    setActivePersona(persona);
+    setSelectedVoice(persona.voice);
+    setMode(persona.mode);
     setLandingExiting(true);
+
     setTimeout(async () => {
       setSessionActive(true);
       sessionActiveRef.current = true;
-      startSession(selectedVoice, mode);
+      startSession(persona.voice, persona.mode);
 
       // Start mic capture
       try {
         await startCapture();
       } catch (err) {
-        console.warn('[Page] Mic capture failed, text-only mode:', err);
+        console.warn('[Page] Mic capture failed', err);
       }
     }, 600);
-  }, [startSession, selectedVoice, mode, startCapture]);
+  }, [startSession, startCapture]);
 
   const handleEndSession = useCallback(() => {
     sessionActiveRef.current = false;
@@ -118,10 +112,10 @@ export default function HomePage() {
     cleanupAudio();
     setSessionActive(false);
     setSessionReady(false);
-    setTranscript([]);
     setOutfits([]);
     setThinkingStatus(null);
     setLandingExiting(false);
+    setActivePersona(null);
   }, [endSession, stopCapture, stopPlayback, cleanupAudio]);
 
   // Toggle mic
@@ -146,14 +140,7 @@ export default function HomePage() {
     [cameraEnabled, sendVideoFrame]
   );
 
-  // Text message send
-  const handleSendText = useCallback(
-    (text: string) => {
-      addTranscript(text, 'user');
-      sendText(text);
-    },
-    [sendText, addTranscript]
-  );
+  // Text message send (removed for voice-only)
 
   // Outfit generation request
   const handleRequestOutfit = useCallback(
@@ -203,21 +190,17 @@ export default function HomePage() {
             </div>
           </header>
 
-          <div className="main-content">
-            <TranscriptPanel messages={transcript} />
-
-            <div className="center-space">
-              {thinkingStatus && <AgentThinking status={thinkingStatus} />}
-            </div>
+          <div className="main-content" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+            {activePersona && (
+              <ActiveCallUI
+                persona={activePersona}
+                isThinking={!!thinkingStatus}
+                sessionReady={sessionReady}
+              />
+            )}
 
             <OutfitGallery outfits={outfits} />
           </div>
-
-          {/* Text input for typed messages */}
-          <TextInput
-            onSendText={handleSendText}
-            onRequestOutfit={handleRequestOutfit}
-          />
 
           <GlassControlBar
             mode={mode}
@@ -225,20 +208,7 @@ export default function HomePage() {
             cameraEnabled={cameraEnabled}
             selectedVoice={selectedVoice}
             onToggleMode={() => {
-              // Note: Changing mode mid-session requires a restart for now
-              setMode((p) => {
-                const newMode = p === 'stylist' ? 'designer' : 'stylist';
-                if (sessionActiveRef.current) {
-                  addTranscript(`[System] Switched to ${newMode === 'stylist' ? 'Stylist' : 'Designer'} mode. Reconnecting...`, 'agent');
-                  endSession();
-                  setTimeout(() => {
-                    setSessionActive(true);
-                    sessionActiveRef.current = true;
-                    startSession(selectedVoice, newMode);
-                  }, 1000);
-                }
-                return newMode;
-              });
+              // Toggle is now hidden or handled via end session in the Voice-Only UI
             }}
             onToggleMic={handleToggleMic}
             onToggleCamera={() => setCameraEnabled((p) => !p)}
