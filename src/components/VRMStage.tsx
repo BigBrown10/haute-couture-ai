@@ -22,6 +22,18 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
     const lookAtTargetRef = useRef(new THREE.Object3D());
     const mouseRef = useRef(new THREE.Vector2());
 
+    // Use refs for rapidly changing props to prevent re-initializing the entire 3D scene
+    const volumeRef = useRef(agentVolume);
+    const thinkingRef = useRef(isThinking);
+
+    useEffect(() => {
+        volumeRef.current = agentVolume;
+    }, [agentVolume]);
+
+    useEffect(() => {
+        thinkingRef.current = isThinking;
+    }, [isThinking]);
+
     useEffect(() => {
         if (!canvasRef.current || !containerRef.current) return;
 
@@ -90,11 +102,11 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                             const leftArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
                             const rightArm = vrm.humanoid.getRawBoneNode('rightUpperArm');
                             if (leftArm) {
-                                leftArm.rotation.z = 1.2;
+                                leftArm.rotation.z = -1.2;
                                 leftArm.rotation.x = 0.2;
                             }
                             if (rightArm) {
-                                rightArm.rotation.z = -1.2;
+                                rightArm.rotation.z = 1.2;
                                 rightArm.rotation.x = 0.2;
                             }
                         }
@@ -163,11 +175,12 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 const t = Date.now() / 1000;
 
                 // Lip Sync based on Agent Volume
-                const mouthOpen = Math.min(1.0, agentVolume * 5.0); // Boosted sensitivity
+                const currentVol = volumeRef.current;
+                const mouthOpen = Math.min(1.0, currentVol * 5.0); // Boosted sensitivity
                 currentVrm.expressionManager?.setValue('aa', mouthOpen);
 
                 // Thinking (Blink Rapidly or hold)
-                if (isThinking) {
+                if (thinkingRef.current) {
                     const blink = Math.sin(t * 10) > 0.8 ? 1 : 0;
                     currentVrm.expressionManager?.setValue('blink', blink);
                 } else {
@@ -179,7 +192,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 currentVrm.update(delta);
             } else if (activeBillboard) {
                 // Billboard Mock Update for 2D images
-                const scale = 1.0 + agentVolume * 0.15;
+                const scale = 1.0 + volumeRef.current * 0.15;
                 activeBillboard.scale.set(scale, scale, 1);
 
                 const t = Date.now() / 1000;
@@ -215,7 +228,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
             controls.dispose();
             renderer.dispose();
         };
-    }, [personaName, agentVolume, isThinking]);
+    }, [personaName]); // Critical: Removed agentVolume & isThinking to prevent canvas destruction loop
 
     return (
         <div ref={containerRef} className="vrm-stage-container" style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>
