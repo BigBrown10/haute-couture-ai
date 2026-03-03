@@ -237,19 +237,20 @@ export default function HomePage() {
               </div>
             )}
 
-            <div className="gallery-section" style={{
+            <div className="gallery-section hearts-atelier-panel" style={{
               position: 'absolute',
               right: '2rem',
               top: '6rem',
-              width: '320px',
+              width: '400px',
               height: 'calc(100vh - 180px)',
               overflowY: 'auto',
               zIndex: 20,
-              display: outfits.length > 0 ? 'block' : 'none',
-              background: outfits.length > 0 ? 'rgba(0,0,0,0.4)' : 'transparent',
-              borderRadius: '16px',
-              padding: '1rem',
-              backdropFilter: 'blur(10px)'
+              background: 'rgba(22, 24, 28, 0.95)',
+              borderRadius: '24px',
+              border: '1px solid rgba(212, 168, 83, 0.15)',
+              padding: '1.5rem',
+              boxShadow: '0 10px 40px rgba(0,0,0,0.5)',
+              backdropFilter: 'blur(20px)'
             }}>
               <OutfitGallery outfits={outfits} />
             </div>

@@ -63,11 +63,11 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
         // --- Orbit Controls ---
         // Allow the user to drag the screen to spin and zoom around the agent interactively!
         const controls = new OrbitControls(camera, renderer.domElement);
-        controls.target.set(0.0, 0.8, 0.0); // Center orbit lower, near the waist for full body framing
+        controls.target.set(0.0, 1.0, 0.0); // Center orbit near the waist for full body framing
         controls.enablePan = false;
         controls.enableZoom = true;
-        controls.minDistance = 0.5;
-        controls.maxDistance = 3.0;
+        controls.minDistance = 1.0;
+        controls.maxDistance = 8.0; // CRITICAL: Stop the controls from snapping the camera forward!
         controls.update();
 
         // --- Lighting ---

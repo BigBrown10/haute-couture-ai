@@ -455,36 +455,120 @@ body {
   width: 100%;
 }
 
-.outfit-gallery {
-  width: 340px;
-  flex-shrink: 0;
+/* ── HEARTS AI Atelier (Right Sidebar) ───────────────────── */
+.atelier-container {
   display: flex;
   flex-direction: column;
-  gap: var(--space-md);
-  padding: var(--space-lg);
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+  height: 100%;
 }
 
-.outfit-gallery::-webkit-scrollbar {
-  width: 4px;
+.atelier-header {
+  text-align: center;
+  margin-bottom: var(--space-xl);
 }
 
-.outfit-gallery::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 4px;
-}
-
-.gallery-header {
+.atelier-header h2 {
   font-family: var(--font-serif);
-  font-size: 0.85rem;
+  font-size: 1.5rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  padding-bottom: var(--space-sm);
-  border-bottom: 1px solid var(--glass-border);
+  letter-spacing: 0.05em;
+  background: linear-gradient(135deg, #d4a853, #f0c97a, #d4a853);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 4px;
+}
+
+.atelier-header p {
+  color: #a0a0a5;
+  font-size: 0.85rem;
+  font-weight: 400;
+}
+
+.atelier-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  overflow-y: auto;
+  padding-bottom: 2rem;
+  scrollbar-width: none;
+  /* Hide scrollbar for premium look */
+}
+
+.atelier-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  position: relative;
+  transition: transform var(--duration-normal) var(--ease-spring);
+}
+
+.atelier-card.generated:hover {
+  transform: translateY(-5px) scale(1.03);
+}
+
+.atelier-placeholder-inner {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(212, 168, 83, 0.35);
+  /* Subtle gold border */
+  border-radius: 12px;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.atelier-card.generated .atelier-placeholder-inner,
+.atelier-card.generated:hover .atelier-placeholder-inner {
+  border-color: rgba(212, 168, 83, 0.8);
+  /* Glow gold on hover */
+  box-shadow: 0 0 20px rgba(212, 168, 83, 0.15);
+}
+
+.atelier-img {
+  width: 100%;
+  aspect-ratio: 4 / 5;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid rgba(212, 168, 83, 0.5);
+}
+
+.atelier-label {
+  font-size: 0.75rem;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.download-fab {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s;
+  color: white;
+  font-size: 14px;
+}
+
+.atelier-card.generated:hover .download-fab {
+  opacity: 1;
+}
+
+.download-fab:hover {
+  background: rgba(212, 168, 83, 0.8);
 }
 
 .outfit-card {

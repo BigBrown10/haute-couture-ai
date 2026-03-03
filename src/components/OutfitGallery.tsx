@@ -31,52 +31,51 @@ export default function OutfitGallery({ outfits }: OutfitGalleryProps) {
     };
 
     return (
-        <div className={`lookbook-tray ${outfits.length > 0 ? 'is-visible' : ''}`}>
-            <div className="lookbook-header">
-                <h3>My Lookbook</h3>
-                <span className="count">{outfits.length} LOOKS</span>
+        <div className="atelier-container">
+            <div className="atelier-header">
+                <h2>HEARTS AI Atelier</h2>
+                <p>Your Design Assets & Patterns</p>
             </div>
 
-            <div className="lookbook-grid" ref={gridRef}>
+            <div className="atelier-grid" ref={gridRef}>
+                {/* User's Generated Outfits */}
                 {outfits.map((outfit) => (
-                    <div key={outfit.id} className="lookbook-card glass-card">
-                        <div className="card-media" onClick={() => {
-                            if (outfit.imageBase64) setFullscreenImage(`data:image/jpeg;base64,${outfit.imageBase64}`);
-                        }}>
-                            {outfit.imageBase64 ? (
-                                <img
-                                    src={`data:image/jpeg;base64,${outfit.imageBase64}`}
-                                    alt={outfit.caption}
-                                    className="lookbook-img"
-                                />
-                            ) : (
-                                <div className="lookbook-placeholder">👗 Sketching...</div>
-                            )}
-                        </div>
-
-                        <div className="card-info">
-                            <p className="caption">{outfit.caption}</p>
-                            <div className="card-actions">
-                                <button
-                                    className="action-btn download-btn"
-                                    onClick={(e) => {
-                                        e.stopPropagation();
-                                        if (outfit.imageBase64) handleDownload(outfit.imageBase64, outfit.id);
-                                    }}
-                                    title="Download Look"
-                                >
-                                    📥 Save
-                                </button>
-                                <button
-                                    className="action-btn view-btn"
-                                    onClick={() => {
-                                        if (outfit.imageBase64) setFullscreenImage(`data:image/jpeg;base64,${outfit.imageBase64}`);
-                                    }}
-                                >
-                                    🔍 View
-                                </button>
+                    <div key={outfit.id} className="atelier-card generated" onClick={() => {
+                        if (outfit.imageBase64) setFullscreenImage(`data:image/jpeg;base64,${outfit.imageBase64}`);
+                    }}>
+                        {outfit.imageBase64 ? (
+                            <img
+                                src={`data:image/jpeg;base64,${outfit.imageBase64}`}
+                                alt="Generated Asset"
+                                className="atelier-img"
+                            />
+                        ) : (
+                            <div className="atelier-placeholder-inner loading">
+                                <div className="spinner"></div>
                             </div>
-                        </div>
+                        )}
+                        <span className="atelier-label">{outfit.id.slice(0, 16)}...</span>
+
+                        {/* Download button overlaid */}
+                        {outfit.imageBase64 && (
+                            <button
+                                className="download-fab"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownload(outfit.imageBase64, outfit.id);
+                                }}
+                            >
+                                📥
+                            </button>
+                        )}
+                    </div>
+                ))}
+
+                {/* Fill empty slots to always show the 2 placeholder cards like the mockup */}
+                {Array.from({ length: Math.max(0, 2 - outfits.length) }).map((_, idx) => (
+                    <div key={`empty-${idx}`} className="atelier-card empty">
+                        <div className="atelier-placeholder-inner"></div>
+                        <span className="atelier-label">Generated Image {outfits.length + idx + 1}</span>
                     </div>
                 ))}
             </div>
