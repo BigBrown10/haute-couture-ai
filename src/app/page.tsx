@@ -32,6 +32,8 @@ export default function HomePage() {
   const [activePersona, setActivePersona] = useState<Persona | null>(null);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [garmentPhoto, setGarmentPhoto] = useState<string | null>(null);
+  const [userVolume, setUserVolume] = useState(0);
+  const [agentVolume, setAgentVolume] = useState(0);
 
   const messageIdRef = useRef(0);
   const sessionActiveRef = useRef(false);
@@ -43,7 +45,7 @@ export default function HomePage() {
   }, []);
 
   // ── Audio Playback ─────────────────────────────────────
-  const { playChunk, stopPlayback, cleanup: cleanupAudio } = useAudioPlayback();
+  const { playChunk, stopPlayback, cleanup: cleanupAudio } = useAudioPlayback(setAgentVolume);
 
   // ── Socket Connection ──────────────────────────────────
   const {
@@ -82,7 +84,8 @@ export default function HomePage() {
         }
       },
       [sendAudioChunk, micEnabled]
-    )
+    ),
+    setUserVolume
   );
 
   // ── Session Lifecycle ──────────────────────────────────
@@ -242,6 +245,8 @@ export default function HomePage() {
                   persona={activePersona}
                   isThinking={!!thinkingStatus}
                   sessionReady={sessionReady}
+                  userVolume={userVolume}
+                  agentVolume={agentVolume}
                 />
 
                 {/* Upload Buttons */}

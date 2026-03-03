@@ -3,15 +3,33 @@
 import { Persona } from './LandingOverlay';
 
 interface ActiveCallUIProps {
-    persona: Persona;
+    persona: {
+        name: string;
+        image: string;
+    };
     isThinking: boolean;
     sessionReady: boolean;
+    userVolume?: number;
+    agentVolume?: number;
 }
 
-export default function ActiveCallUI({ persona, isThinking, sessionReady }: ActiveCallUIProps) {
+export default function ActiveCallUI({
+    persona,
+    isThinking,
+    sessionReady,
+    userVolume = 0,
+    agentVolume = 0
+}: ActiveCallUIProps) {
+    // Combine volumes for a "vibe" scale
+    const vibeScale = 1 + (agentVolume * 0.5) + (userVolume * 0.2);
+    const agentIntensity = Math.min(1, agentVolume * 2);
+
     return (
-        <div className="active-call-ui">
-            <div className={`avatar-container ${!sessionReady ? 'connecting' : ''} ${isThinking ? 'thinking' : 'speaking'}`}>
+        <div className="active-call-ui" style={{
+            '--vibe-scale': vibeScale,
+            '--agent-intensity': agentIntensity
+        } as React.CSSProperties}>
+            <div className={`avatar-container ${!sessionReady ? 'connecting' : ''} ${isThinking ? 'thinking' : agentVolume > 0.05 ? 'speaking' : ''}`}>
                 {/* Grok-style fluid visualizer background */}
                 <div className="vibe-visualizer">
                     <div className="blob blob-1"></div>
@@ -27,9 +45,13 @@ export default function ActiveCallUI({ persona, isThinking, sessionReady }: Acti
             <div className="active-call-info glass-panel">
                 <h2 className="bestie-name">{persona.name}</h2>
                 <div className="status-indicator">
-                    <span className="dot"></span>
+                    <span className="dot" style={{
+                        background: userVolume > 0.1 ? '#00ff88' : '#666',
+                        boxShadow: userVolume > 0.1 ? '0 0 15px #00ff88' : 'none',
+                        transform: `scale(${1 + userVolume})`
+                    }}></span>
                     <p className="call-status">
-                        {!sessionReady ? 'Connecting to bestie...' : isThinking ? 'Thinking...' : 'Active Now'}
+                        {!sessionReady ? 'Connecting to bestie...' : isThinking ? 'Thinking...' : agentVolume > 0.05 ? 'Talking...' : 'Listening...'}
                     </p>
                 </div>
             </div>

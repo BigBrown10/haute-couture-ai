@@ -920,7 +920,8 @@ body {
   z-index: 0;
   opacity: 0.6;
   pointer-events: none;
-  transition: all 1s ease;
+  transition: opacity 1s ease, transform 0.1s linear;
+  transform: scale(var(--vibe-scale, 1));
 }
 
 .blob {
@@ -951,14 +952,15 @@ body {
 }
 
 .avatar-container.speaking .vibe-visualizer {
-  opacity: 0.9;
-  filter: blur(30px);
-  transform: scale(1.1);
+  opacity: calc(0.6 + (var(--agent-intensity, 0) * 0.4));
+  filter: blur(calc(40px - (var(--agent-intensity, 0) * 10px)));
+  transform: scale(var(--vibe-scale, 1.1));
 }
 
-.avatar-container.thinking .vibe-visualizer {
-  background: var(--color-violet);
-  animation: pulseGlow 1.5s infinite;
+.avatar-container.speaking .active-avatar-img {
+  animation: avatarBestieTalk 0.4s ease-in-out infinite alternate;
+  border-color: var(--color-gold);
+  box-shadow: 0 0 calc(20px + (var(--agent-intensity, 0) * 40px)) var(--color-gold-dim);
 }
 
 .avatar-ring {

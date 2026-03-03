@@ -9,15 +9,16 @@ import { useRef, useCallback, useState } from 'react';
  * then resamples from the browser's native sample rate (usually 48kHz)
  * down to 16kHz as required by the Gemini Live API.
  */
-export function useAudioCapture(onAudioChunk: (base64: string) => void) {
+export function useAudioCapture(onAudioChunk: (base64: string) => void, onVolumeChange?: (volume: number) => void) {
     const audioContextRef = useRef<AudioContext | null>(null);
     const workletNodeRef = useRef<AudioWorkletNode | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
     const streamRef = useRef<MediaStream | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
     const [isCapturing, setIsCapturing] = useState(false);
 
     const startCapture = useCallback(async () => {
         try {
-            // Get microphone access
             const stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
                     sampleRate: { ideal: 16000 },
@@ -29,68 +30,73 @@ export function useAudioCapture(onAudioChunk: (base64: string) => void) {
             });
             streamRef.current = stream;
 
-            // Create AudioContext
             const audioContext = new AudioContext({ sampleRate: 16000 });
             audioContextRef.current = audioContext;
 
-            // If browser doesn't support 16kHz, we'll resample
             const nativeSampleRate = audioContext.sampleRate;
-            console.log('[AudioCapture] Native sample rate:', nativeSampleRate);
 
-            // Load the AudioWorklet processor
+            // Add Analyser for volume detection
+            const analyser = audioContext.createAnalyser();
+            analyser.fftSize = 256;
+            analyserRef.current = analyser;
+
             await audioContext.audioWorklet.addModule('/audio-worklet-processor.js');
 
-            // Create source and worklet
             const source = audioContext.createMediaStreamSource(stream);
             const workletNode = new AudioWorkletNode(audioContext, 'pcm-capture-processor');
             workletNodeRef.current = workletNode;
 
-            // Handle PCM data from the worklet
             workletNode.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
                 const pcmBuffer = event.data;
-
-                if (nativeSampleRate !== 16000) {
-                    // Resample to 16kHz
-                    const resampled = resamplePCM(pcmBuffer, nativeSampleRate, 16000);
-                    const base64 = arrayBufferToBase64(resampled);
-                    onAudioChunk(base64);
-                } else {
-                    const base64 = arrayBufferToBase64(pcmBuffer);
-                    onAudioChunk(base64);
-                }
+                const base64 = nativeSampleRate !== 16000
+                    ? arrayBufferToBase64(resamplePCM(pcmBuffer, nativeSampleRate, 16000))
+                    : arrayBufferToBase64(pcmBuffer);
+                onAudioChunk(base64);
             };
 
-            // Connect: mic → worklet
-            source.connect(workletNode);
-            // Don't connect worklet to destination (we don't want to hear ourselves)
+            source.connect(analyser); // Connect to analyser
+            analyser.connect(workletNode);
+
+            // Volume analysis loop
+            if (onVolumeChange) {
+                const dataArray = new Uint8Array(analyser.frequencyBinCount);
+                const updateVolume = () => {
+                    analyser.getByteFrequencyData(dataArray);
+                    let sum = 0;
+                    for (let i = 0; i < dataArray.length; i++) {
+                        sum += dataArray[i];
+                    }
+                    const average = sum / dataArray.length;
+                    onVolumeChange(average / 128); // Normalized 0-1
+                    animationFrameRef.current = requestAnimationFrame(updateVolume);
+                };
+                updateVolume();
+            }
 
             setIsCapturing(true);
-            console.log('[AudioCapture] ✅ Started');
         } catch (err) {
             console.error('[AudioCapture] Failed to start:', err);
             setIsCapturing(false);
         }
-    }, [onAudioChunk]);
+    }, [onAudioChunk, onVolumeChange]);
 
     const stopCapture = useCallback(() => {
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
         if (workletNodeRef.current) {
             workletNodeRef.current.port.postMessage('stop');
             workletNodeRef.current.disconnect();
             workletNodeRef.current = null;
         }
-
+        if (analyserRef.current) analyserRef.current.disconnect();
         if (audioContextRef.current) {
             audioContextRef.current.close().catch(() => { });
             audioContextRef.current = null;
         }
-
         if (streamRef.current) {
             streamRef.current.getTracks().forEach((t) => t.stop());
             streamRef.current = null;
         }
-
         setIsCapturing(false);
-        console.log('[AudioCapture] Stopped');
     }, []);
 
     return { startCapture, stopCapture, isCapturing };

@@ -67,10 +67,15 @@ const io = new SocketIOServer(httpServer, {
         methods: ['GET', 'POST'],
         credentials: true,
     },
-    maxHttpBufferSize: 10e6, // 10MB for Base64 frames
-    pingTimeout: 60000,
-    pingInterval: 25000,
+    maxHttpBufferSize: 10e6,
+    pingTimeout: 30000,   // More aggressive
+    pingInterval: 10000,  // More aggressive
 });
+
+// ── Shared Heartbeat ──
+setInterval(() => {
+    io.emit('heartbeat', { uptime: process.uptime(), timestamp: Date.now() });
+}, 10000);
 
 io.on('connection', (socket) => {
     console.log(`[Server] Client connected: ${socket.id}`);
