@@ -30,6 +30,8 @@ export default function HomePage() {
   const [selectedVoice, setSelectedVoice] = useState('Despina');
   const [mode, setMode] = useState<'stylist' | 'designer'>('stylist');
   const [activePersona, setActivePersona] = useState<Persona | null>(null);
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
+  const [garmentPhoto, setGarmentPhoto] = useState<string | null>(null);
 
   const messageIdRef = useRef(0);
   const sessionActiveRef = useRef(false);
@@ -131,9 +133,10 @@ export default function HomePage() {
   }, [startCapture, stopCapture]);
 
   // ── Photo Upload ───────────────────────────────────────
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const userFileInputRef = useRef<HTMLInputElement>(null);
+  const garmentFileInputRef = useRef<HTMLInputElement>(null);
 
-  const handlePhotoUpload = useCallback(
+  const handleUserPhoto = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
@@ -142,12 +145,32 @@ export default function HomePage() {
       reader.onload = async (e) => {
         const result = e.target?.result as string;
         if (result) {
-          // Send to API as a video frame
           const base64Data = result.split(',')[1];
+          setUserPhoto(base64Data);
           sendVideoFrame(base64Data);
+          sendText("Hey bestie! I just uploaded a photo of myself. What do you think of my current fit? Can you show me something better?");
+        }
+      };
+      reader.readAsDataURL(file);
+    },
+    [sendVideoFrame, sendText]
+  );
 
-          // Force the agent to critique it
-          sendText("I have uploaded a photo of my outfit. Please critique it and then generate a new outfit.");
+  const handleGarmentPhoto = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const result = e.target?.result as string;
+        if (result) {
+          const base64Data = result.split(',')[1];
+          setGarmentPhoto(base64Data);
+          // For now, we send both to the backend as frames. 
+          // The backend prompt will instruct the model to handle it.
+          sendVideoFrame(base64Data);
+          sendText("Wait, what about this specific dress/item? Can you place this on me so I can see how it looks?");
         }
       };
       reader.readAsDataURL(file);
@@ -169,13 +192,20 @@ export default function HomePage() {
 
   return (
     <main className="app-container">
-      {/* Photo Upload Hidden Input */}
+      {/* Hidden Inputs */}
       <input
         type="file"
         accept="image/*"
-        ref={fileInputRef}
+        ref={userFileInputRef}
         style={{ display: 'none' }}
-        onChange={handlePhotoUpload}
+        onChange={handleUserPhoto}
+      />
+      <input
+        type="file"
+        accept="image/*"
+        ref={garmentFileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleGarmentPhoto}
       />
 
       {/* Background Dimmer */}
@@ -214,15 +244,25 @@ export default function HomePage() {
                   sessionReady={sessionReady}
                 />
 
-                {/* Upload Button */}
+                {/* Upload Buttons */}
                 {sessionReady && (
-                  <button
-                    className="glass-button"
-                    style={{ marginTop: '2rem', padding: '16px 32px', fontSize: '1.2rem', gap: '8px' }}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    📸 Upload Outfit Photo for Critique
-                  </button>
+                  <div style={{ marginTop: '2rem', display: 'flex', gap: '16px' }}>
+                    <button
+                      className="glass-button"
+                      style={{ padding: '16px 24px', fontSize: '1rem', gap: '8px' }}
+                      onClick={() => userFileInputRef.current?.click()}
+                    >
+                      📸 Upload My Photo
+                    </button>
+                    <button
+                      className="glass-button"
+                      style={{ padding: '16px 24px', fontSize: '1rem', gap: '8px', border: userPhoto ? '1px solid var(--color-gold)' : '' }}
+                      disabled={!userPhoto}
+                      onClick={() => garmentFileInputRef.current?.click()}
+                    >
+                      👗 Try On Specific Item
+                    </button>
+                  </div>
                 )}
               </div>
             )}

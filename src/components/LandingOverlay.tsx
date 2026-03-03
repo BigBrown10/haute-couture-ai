@@ -18,8 +18,8 @@ export const PERSONAS: Persona[] = [
     {
         id: 'despina',
         name: 'Despina',
-        specialty: 'Haute Couture & Editorial',
-        description: 'Avant-garde Parisian stylist. Brutally honest, expects perfection. Will tear your outfit apart and rebuild it.',
+        specialty: 'Chic Parisian Big Sister',
+        description: 'Effortlessly chic and sharp. She is the sophisticated older sister you always wanted. She will be honest about your fit but only because she wants you to look like a million bucks.',
         image: '/avatars/despina.png',
         voice: 'Kore',
         mode: 'stylist'
@@ -27,8 +27,8 @@ export const PERSONAS: Persona[] = [
     {
         id: 'tony',
         name: 'Tony',
-        specialty: 'Streetwear & Smart Casual',
-        description: 'Cool, modern, and effortless. Focuses on premium basics, sneakers, and clean silhouettes.',
+        specialty: 'Sneakerhead Brother',
+        description: 'The effortlessly cool brother who knows every drop. He focuses on drip, proportions, and making sure your streetwear game is untouchable.',
         image: '/avatars/tony.png',
         voice: 'Puck',
         mode: 'stylist'
@@ -36,8 +36,8 @@ export const PERSONAS: Persona[] = [
     {
         id: 'gina',
         name: 'Gina',
-        specialty: 'Prom & Evening Wear',
-        description: 'Glamorous and upbeat! Expert in event dressing, sequins, and making sure you steal the show.',
+        specialty: 'Your Glam Bestie',
+        description: 'Bubbly, energetic, and your biggest hype woman! She specialize in making sure you look absolutely stunning for any event, from prom to the red carpet.',
         image: '/avatars/gina.png',
         voice: 'Aoede',
         mode: 'stylist'
@@ -59,7 +59,7 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
             <div className="landing-content-wide">
                 <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
                     <p className="landing-subtitle" style={{ fontSize: '1.2rem', opacity: 0.8 }}>
-                        Select your AI stylist. Upload a photo of your fit. Get brutally honest feedback.
+                        Meet your new AI fashion bestie.
                     </p>
                 </div>
 
@@ -86,9 +86,9 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                         className="glass-button landing-cta"
                         onClick={() => onStart(selectedPersona)}
                         id="begin-session"
-                        style={{ marginTop: '1.5rem', fontSize: '1.2rem', padding: '16px 32px' }}
+                        style={{ marginTop: '1.5rem', fontSize: '1.4rem', padding: '16px 64px', borderRadius: '50px' }}
                     >
-                        Start Video Call with {selectedPersona.name}
+                        Start Now!
                     </button>
                 </div>
             </div>

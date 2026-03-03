@@ -14,6 +14,7 @@ interface GenerateOutfitParams {
     eventContext: string;
     styleNotes?: string;
     userFrameBase64?: string;
+    garmentFrameBase64?: string; // NEW: Optional specific item
 }
 
 interface GenerateOutfitResult {
@@ -42,12 +43,22 @@ export async function generateOutfitImage(
         // Build parts array
         const parts: Part[] = [{ text: fullPrompt }];
 
-        // Include user frame for virtual try-on if available
+        // Include user foundation frame
         if (params.userFrameBase64) {
             parts.push({
                 inlineData: {
                     mimeType: 'image/jpeg',
                     data: params.userFrameBase64,
+                },
+            });
+        }
+
+        // Include specific garment frame if provided
+        if (params.garmentFrameBase64) {
+            parts.push({
+                inlineData: {
+                    mimeType: 'image/jpeg',
+                    data: params.garmentFrameBase64,
                 },
             });
         }
@@ -160,42 +171,39 @@ export async function generateFashionSketch(
 }
 
 function buildGenerationPrompt(params: GenerateOutfitParams): string {
-    if (!params.userFrameBase64) {
-        // Fallback to standard editorial generation if no camera frame
-        const lines = [
-            'Generate a high-end, editorial fashion photograph of the following outfit.',
-            'Style: Professional runway photography, clean studio background, perfect lighting.',
-            'Aspect ratio: vertical portrait (9:16).',
-            '',
-            `Event / Occasion: ${params.eventContext}`,
-            `Outfit: ${params.prompt}`,
-        ];
-        if (params.styleNotes) lines.push(`Styling Notes: ${params.styleNotes}`);
-        return lines.join('\n');
-    }
+    const isGarmentTryOn = !!params.garmentFrameBase64;
 
-    // Virtual Try-On (VTO) Image-to-Image Prompt
     const lines = [
-        'VIRTUAL TRY-ON TASK: Redress the person in the provided image with the new outfit described below.',
-        'YOU MUST STRICTLY PRESERVE THE IDENTITY, FACE, HAIR, RACE, AND POSE OF THE PERSON IN THE ORIGINAL IMAGE. DO NOT CHANGE WHO THEY ARE.',
-        'Preserve the original background and lighting as much as possible.',
-        'Only change the clothing they are wearing.',
-        '',
-        `Target Event: ${params.eventContext}`,
-        `New Outfit to generate onto the subject: ${params.prompt}`,
+        'VIRTUAL TRY-ON TASK: Redress the subject from the FIRST provided image.',
+        'FOUNDATION: The first image is the USER. Preserve their identity, face, pose, and background EXACTLY. No robotic alterations or feature changes.',
     ];
 
-    if (params.styleNotes) {
-        lines.push(`Styling Notes: ${params.styleNotes}`);
+    if (isGarmentTryOn) {
+        lines.push(
+            'GARMENT: The second image is a specific item of clothing.',
+            'INSTRUCTION: Take the EXACT design and style from the second image and place it onto the user from the first image.',
+            'Ensure the drape and fit are natural and photorealistic. Maintain original lighting.'
+        );
+    } else {
+        lines.push(
+            'INSTRUCTION: Redress the user in the new outfit described below.',
+            'Maintain perfect photorealism and blend naturally with the original lighting.'
+        );
     }
 
     lines.push(
         '',
+        `Target Event: ${params.eventContext}`,
+        `Outfit: ${params.prompt}`,
+        '',
         'Requirements:',
-        '- Photorealistic image manipulation.',
-        '- The new clothes must fit the subject naturally, respecting the physics of drape and gravity on their specific pose.',
-        '- Seamless blending with the original image.',
+        '- High-end, editorial fashion photography style.',
+        '- Zero robotic artifacts.'
     );
+
+    if (params.styleNotes) {
+        lines.push(`Styling Notes: ${params.styleNotes}`);
+    }
 
     return lines.join('\n');
 }
