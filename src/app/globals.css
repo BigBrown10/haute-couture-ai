@@ -89,9 +89,9 @@ body {
   font-family: var(--font-sans);
   background: var(--bg-dark);
   color: var(--text-primary);
-  overflow: hidden;
+  overflow-x: hidden;
   width: 100vw;
-  height: 100dvh;
+  min-height: 100dvh;
   position: relative;
 }
 
@@ -192,8 +192,8 @@ body {
 .app-container {
   position: relative;
   width: 100vw;
-  height: 100dvh;
-  overflow: hidden;
+  min-height: 100dvh;
+  overflow-x: hidden;
 }
 
 /* Layer 1: Full-bleed camera background */
@@ -225,7 +225,7 @@ body {
 }
 
 .vrm-stage-wrapper {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 2;
 }
@@ -251,7 +251,7 @@ body {
 
 /* Dark overlay on camera for readability */
 .camera-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 1;
   background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.55) 100%);
@@ -260,8 +260,9 @@ body {
 
 /* Layer 2: UI chrome */
 .ui-layer {
-  position: absolute;
-  inset: 0;
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
   z-index: 10;
   display: flex;
   flex-direction: column;
@@ -638,7 +639,7 @@ body {
 
 /* ── Scanning Lines Overlay ─────────────────────────────── */
 .scan-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
   z-index: 5;
   pointer-events: none;
