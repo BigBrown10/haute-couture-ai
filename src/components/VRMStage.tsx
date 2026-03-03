@@ -248,7 +248,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                         fingers.forEach(finger => {
                             joints.forEach(joint => {
                                 const boneName = `${side}${finger}${joint}`;
-                                const node = currentVrm.humanoid.getNormalizedBoneNode(boneName as any);
+                                const node = currentVrm?.humanoid?.getNormalizedBoneNode(boneName as any);
                                 if (node) {
                                     // Finger curling amount (thumb is less curled, pinky is most curled)
                                     let curl = 0.15;
