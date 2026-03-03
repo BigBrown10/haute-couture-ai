@@ -5,10 +5,11 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
+import { VisemeData } from '@/hooks/useAudioPlayback';
 
 interface VRMStageProps {
     personaName: string;
-    agentVolume: number;
+    agentVolume: VisemeData;
     isThinking: boolean;
 }
 
@@ -164,7 +165,8 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 const t = Date.now() / 1000;
 
                 // --- Voice and Body Sync Animation ---
-                const currentVol = volumeRef.current;
+                const visemes = volumeRef.current;
+                const currentVol = visemes.volume;
 
                 // 1. Procedural Lifelike Breathing and Posture (Organic Body Sync)
                 if (currentVrm.humanoid) {
@@ -227,19 +229,20 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                     }
                 }
 
-                // Lip Sync based on Agent Volume (VRM 1.0 AND VRM 0.0 support!)
-                const mouthOpen = Math.min(1.0, currentVol * 7.0);   // High sensitivity
-                const mouthWide = currentVol > 0.15 ? currentVol * 5.0 : 0;
+                // Lip Sync based on True WebAudio Viseme Analysis (VRM 1.0 AND VRM 0.0)
+                const mouthOpen = visemes.a;
+                const mouthWide = visemes.i;
+                const mouthRound = visemes.u;
 
                 // VRM 1.0 keys
                 currentVrm.expressionManager?.setValue('aa', mouthOpen);
                 currentVrm.expressionManager?.setValue('ih', mouthWide);
-                currentVrm.expressionManager?.setValue('oh', mouthOpen * 0.5);
+                currentVrm.expressionManager?.setValue('oh', mouthRound);
 
-                // VRM 0.0 fallback keys (Crucial because previous lip sync failed silently!)
+                // VRM 0.0 fallback keys
                 currentVrm.expressionManager?.setValue('a', mouthOpen);
                 currentVrm.expressionManager?.setValue('i', mouthWide);
-                currentVrm.expressionManager?.setValue('u', mouthOpen * 0.5);
+                currentVrm.expressionManager?.setValue('u', mouthRound);
 
                 // Thinking (Blink Rapidly or hold)
                 if (thinkingRef.current) {
@@ -254,7 +257,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 currentVrm.update(delta);
             } else if (activeBillboard) {
                 // Billboard Mock Update for 2D images
-                const scale = 1.0 + volumeRef.current * 0.15;
+                const scale = 1.0 + visemes.volume * 0.15;
                 activeBillboard.scale.set(scale, scale, 1);
 
                 const t = Date.now() / 1000;
