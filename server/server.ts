@@ -33,12 +33,11 @@ if (!process.env.GEMINI_API_KEY) {
 // ── HTTP Server with Health Check ─────────────────────────
 const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
     // CORS preflight
-    const origin = req.headers.origin || '';
-    if (ALLOWED_ORIGINS.includes(origin) || ALLOWED_ORIGINS.includes('*')) {
-        res.setHeader('Access-Control-Allow-Origin', origin);
-        res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-        res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    }
+    const origin = req.headers.origin || '*';
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
 
     if (req.method === 'OPTIONS') {
         res.writeHead(204);
@@ -64,7 +63,7 @@ const httpServer = createServer((req: IncomingMessage, res: ServerResponse) => {
 // ── Socket.IO Server ──────────────────────────────────────
 const io = new SocketIOServer(httpServer, {
     cors: {
-        origin: ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : '*',
+        origin: '*',
         methods: ['GET', 'POST'],
         credentials: true,
     },
