@@ -34,10 +34,8 @@ export default function OutfitGallery({ outfits }: OutfitGalleryProps) {
         <div className="atelier-container">
             <div className="atelier-header">
                 <h2>
-                    <span className="text-gold">HEARTS</span>{' '}
-                    <span className="text-silver">AI Atelier</span>
+                    <span className="text-silver" style={{ fontSize: '1.8rem', fontWeight: 400 }}>My Looks</span>
                 </h2>
-                <p>Your Design Assets & Patterns</p>
             </div>
 
             <div className="atelier-grid" ref={gridRef}>

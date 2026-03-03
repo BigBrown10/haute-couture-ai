@@ -21,18 +21,18 @@ export default function GlassControlBar({
         <div className="control-bar">
             {/* Upload Button */}
             <label
-                className="glass-button secondary"
+                className="glass-button control-btn"
                 title="Upload Photo"
                 aria-label="Upload Photo"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: '0 8px', padding: '0 20px', borderRadius: '28px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: '0 8px' }}
             >
                 <input type="file" accept="image/*" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={onUploadPhoto} />
-                📸 Upload
+                📸
             </label>
 
             {/* Try On Button */}
             <label
-                className={`glass-button primary ${canTryOn ? '' : 'disabled'}`}
+                className={`glass-button control-btn ${canTryOn ? '' : 'disabled'}`}
                 title={canTryOn ? "Try On Item" : "Upload a photo first to try on items"}
                 aria-label="Try On Item"
                 style={{
@@ -41,11 +41,7 @@ export default function GlassControlBar({
                     justifyContent: 'center',
                     cursor: canTryOn ? 'pointer' : 'not-allowed',
                     margin: '0 8px',
-                    padding: '0 20px',
-                    borderRadius: '28px',
-                    fontSize: '0.9rem',
-                    opacity: canTryOn ? 1 : 0.4,
-                    whiteSpace: 'nowrap'
+                    opacity: canTryOn ? 1 : 0.4
                 }}
             >
                 <input
@@ -55,7 +51,7 @@ export default function GlassControlBar({
                     onChange={canTryOn ? onTryOnItem : undefined}
                     disabled={!canTryOn}
                 />
-                👗 Try On
+                👗
             </label>
 
             {/* Mic toggle — large center button */}

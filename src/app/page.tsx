@@ -211,12 +211,6 @@ export default function HomePage() {
               <div className="brand-logo">👁</div>
               <span className="brand-name">Haute Couture AI</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <span className={`status-dot ${connected ? 'connected' : 'disconnected'}`} />
-              <span className="session-badge live">
-                {sessionReady ? '● LIVE' : '◌ CONNECTING'}
-              </span>
-            </div>
           </header>
 
           <div className="main-content" style={{
