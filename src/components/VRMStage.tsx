@@ -174,31 +174,43 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                         spine.rotation.y = Math.sin(t * 0.5) * 0.03;     // gentle sway
                     }
 
-                    // 2. Enforce Relaxed A-Pose (Arms Down) every frame
+                    // 2. Dynamic Arm Gestures & Relaxed A-Pose
+                    // We blend the default A-pose with dynamic talking gestures based on volume!
                     const leftArm = currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm');
                     if (leftArm) {
-                        leftArm.rotation.z = 1.2;  // Left arm drops down
-                        leftArm.rotation.x = 0.1;
+                        // Drop arm by 1.2 radians, add breathing, add outward gesture when talking loudly
+                        leftArm.rotation.z = 1.2 + (currentVol * Math.sin(t * 3) * 0.4);
+                        leftArm.rotation.x = 0.1 + (currentVol * Math.cos(t * 2) * 0.3);
                     }
                     const rightArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
                     if (rightArm) {
-                        rightArm.rotation.z = -1.2; // Right arm drops down
-                        rightArm.rotation.x = 0.1;
+                        // Drop arm by -1.2 radians, add outward gesture when talking loudly
+                        rightArm.rotation.z = -1.2 - (currentVol * Math.sin(t * 3) * 0.4);
+                        rightArm.rotation.x = 0.1 + (currentVol * Math.cos(t * 2) * 0.3);
                     }
 
                     // 3. Voice-Driven Body Sync (Head/Neck Bobbing)
                     const neck = currentVrm.humanoid.getNormalizedBoneNode('neck');
                     if (neck) {
-                        // Blend idle head movement + speaking emphasis bob
-                        neck.rotation.x = (Math.sin(t * 0.8) * 0.05) + (currentVol * 0.3);
-                        neck.rotation.y = Math.sin(t * 0.3) * 0.05;
+                        // Bob head emphatically on syllables!
+                        neck.rotation.x = (Math.sin(t * 0.8) * 0.05) + (currentVol * 0.4 * Math.sin(t * 5));
+                        neck.rotation.y = Math.sin(t * 0.3) * 0.05 + (currentVol * 0.2 * Math.cos(t * 4));
                     }
                 }
 
-                // Lip Sync based on Agent Volume
-                const mouthOpen = Math.min(1.0, currentVol * 6.0); // Boosted sensitivity
+                // Lip Sync based on Agent Volume (VRM 1.0 AND VRM 0.0 support!)
+                const mouthOpen = Math.min(1.0, currentVol * 7.0);   // High sensitivity
+                const mouthWide = currentVol > 0.15 ? currentVol * 5.0 : 0;
+
+                // VRM 1.0 keys
                 currentVrm.expressionManager?.setValue('aa', mouthOpen);
-                currentVrm.expressionManager?.setValue('ih', currentVol > 0.1 ? currentVol * 4.0 : 0); // Adds variance to mouth shape
+                currentVrm.expressionManager?.setValue('ih', mouthWide);
+                currentVrm.expressionManager?.setValue('oh', mouthOpen * 0.5);
+
+                // VRM 0.0 fallback keys (Crucial because previous lip sync failed silently!)
+                currentVrm.expressionManager?.setValue('a', mouthOpen);
+                currentVrm.expressionManager?.setValue('i', mouthWide);
+                currentVrm.expressionManager?.setValue('u', mouthOpen * 0.5);
 
                 // Thinking (Blink Rapidly or hold)
                 if (thinkingRef.current) {
