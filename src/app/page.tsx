@@ -1,10 +1,10 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import CameraFeed from '@/components/CameraFeed';
+// CameraFeed removed for Sprint 6 Photo Upload Pivot
 import GlassControlBar from '@/components/GlassControlBar';
 import OutfitGallery from '@/components/OutfitGallery';
-import ActiveCallUI from '@/components/ActiveCallUI';
+import ActiveCallUI from '../components/ActiveCallUI';
 import LandingOverlay, { Persona } from '@/components/LandingOverlay';
 import { useSocketConnection } from '@/hooks/useSocketConnection';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
@@ -130,17 +130,30 @@ export default function HomePage() {
     });
   }, [startCapture, stopCapture]);
 
-  // Video frame callback — 1 FPS to server
-  const handleVideoFrame = useCallback(
-    (frameBase64: string) => {
-      if (sessionActiveRef.current && cameraEnabled) {
-        sendVideoFrame(frameBase64);
-      }
-    },
-    [cameraEnabled, sendVideoFrame]
-  );
+  // ── Photo Upload ───────────────────────────────────────
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Text message send (removed for voice-only)
+  const handlePhotoUpload = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const result = e.target?.result as string;
+        if (result) {
+          // Send to API as a video frame
+          const base64Data = result.split(',')[1];
+          sendVideoFrame(base64Data);
+
+          // Force the agent to critique it
+          sendText("I have uploaded a photo of my outfit. Please critique it and then generate a new outfit.");
+        }
+      };
+      reader.readAsDataURL(file);
+    },
+    [sendVideoFrame, sendText]
+  );
 
   // Outfit generation request
   const handleRequestOutfit = useCallback(
@@ -156,14 +169,16 @@ export default function HomePage() {
 
   return (
     <main className="app-container">
-      {/* Layer 1: Camera Feed */}
-      <div className="camera-layer">
-        <CameraFeed
-          enabled={sessionActive && cameraEnabled}
-          onFrame={handleVideoFrame}
-        />
-      </div>
+      {/* Photo Upload Hidden Input */}
+      <input
+        type="file"
+        accept="image/*"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handlePhotoUpload}
+      />
 
+      {/* Background Dimmer */}
       {sessionActive && <div className="camera-overlay" />}
 
       {/* Scanning lines when agent is analyzing */}
@@ -192,11 +207,24 @@ export default function HomePage() {
 
           <div className="main-content" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
             {activePersona && (
-              <ActiveCallUI
-                persona={activePersona}
-                isThinking={!!thinkingStatus}
-                sessionReady={sessionReady}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <ActiveCallUI
+                  persona={activePersona}
+                  isThinking={!!thinkingStatus}
+                  sessionReady={sessionReady}
+                />
+
+                {/* Upload Button */}
+                {sessionReady && (
+                  <button
+                    className="glass-button"
+                    style={{ marginTop: '2rem', padding: '16px 32px', fontSize: '1.2rem', gap: '8px' }}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    📸 Upload Outfit Photo for Critique
+                  </button>
+                )}
+              </div>
             )}
 
             <OutfitGallery outfits={outfits} />

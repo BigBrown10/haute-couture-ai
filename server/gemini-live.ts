@@ -53,7 +53,7 @@ export class GeminiLiveSession {
             let systemPrompt = PERSONA_SYSTEM_PROMPT;
             if (isDesigner) {
                 systemPrompt = DESIGNER_SYSTEM_PROMPT;
-            } else if (this.voiceName === 'Zephyr') {
+            } else if (this.voiceName === 'Puck') {
                 systemPrompt = TONY_SYSTEM_PROMPT;
             } else if (this.voiceName === 'Aoede') {
                 systemPrompt = GINA_SYSTEM_PROMPT;

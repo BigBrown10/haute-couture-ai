@@ -21,7 +21,7 @@ export const PERSONAS: Persona[] = [
         specialty: 'Haute Couture & Editorial',
         description: 'Avant-garde Parisian stylist. Brutally honest, expects perfection. Will tear your outfit apart and rebuild it.',
         image: '/avatars/despina.png',
-        voice: 'Despina',
+        voice: 'Kore',
         mode: 'stylist'
     },
     {
@@ -30,7 +30,7 @@ export const PERSONAS: Persona[] = [
         specialty: 'Streetwear & Smart Casual',
         description: 'Cool, modern, and effortless. Focuses on premium basics, sneakers, and clean silhouettes.',
         image: '/avatars/tony.png',
-        voice: 'Zephyr',
+        voice: 'Puck',
         mode: 'stylist'
     },
     {
@@ -58,9 +58,8 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
         <div className={`landing-overlay ${exiting ? 'exiting' : ''}`}>
             <div className="landing-content-wide">
                 <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                    <h1 className="landing-title" style={{ fontSize: '3.5rem' }}>Check My Fit</h1>
                     <p className="landing-subtitle" style={{ fontSize: '1.2rem', opacity: 0.8 }}>
-                        Select your AI stylist. Open your camera. Get brutally honest feedback and see yourself in a new perfect fit.
+                        Select your AI stylist. Upload a photo of your fit. Get brutally honest feedback.
                     </p>
                 </div>
 
