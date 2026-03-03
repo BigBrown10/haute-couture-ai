@@ -78,6 +78,28 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
         dirLight.position.set(1.0, 1.0, 1.0).normalize();
         scene.add(dirLight);
 
+        // Spotlight exact center for the podium
+        const spotLight = new THREE.SpotLight(0xffddaa, 2.5); // Warm gold tint
+        spotLight.position.set(0, 3, 2);
+        spotLight.angle = Math.PI / 6;
+        spotLight.penumbra = 0.5;
+        spotLight.target.position.set(0, 0, 0);
+        scene.add(spotLight);
+        scene.add(spotLight.target);
+
+        // --- Digital Runway Stage (Podium) ---
+        const podiumGeo = new THREE.CylinderGeometry(0.8, 0.85, 0.1, 64);
+        const podiumMat = new THREE.MeshStandardMaterial({
+            color: 0xcfb53b, // Gold
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const podium = new THREE.Mesh(podiumGeo, podiumMat);
+        // VRM feet inherently rest precisely at Y=0. 
+        // We move the podium down by half its height so its top surface sits exactly at Y=0.
+        podium.position.y = -0.05;
+        scene.add(podium);
+
         // --- Asset Loading ---
         let currentVrm: VRM | null = null;
         let activeBillboard: THREE.Mesh | null = null;
