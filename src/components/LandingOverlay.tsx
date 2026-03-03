@@ -86,7 +86,6 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                         className="glass-button landing-cta"
                         onClick={() => onStart(selectedPersona)}
                         id="begin-session"
-                        style={{ marginTop: '1.5rem', fontSize: '1.4rem', padding: '16px 64px', borderRadius: '50px' }}
                     >
                         Start Now!
                     </button>

@@ -104,7 +104,7 @@ io.on('connection', (socket) => {
 
     // ── Start Session ────────────────────────────────────────
     socket.on('start-session', async (config?: { voice?: string, mode?: 'stylist' | 'designer' }) => {
-        const voice = config?.voice || 'Despina';
+        const voice = config?.voice || 'Kore';
         const mode = config?.mode || 'stylist';
         console.log(`[Server] Starting LIVE session for ${socket.id}, voice: ${voice}, mode: ${mode}`);
 

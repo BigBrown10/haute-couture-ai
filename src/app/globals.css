@@ -729,20 +729,25 @@ body {
 }
 
 .landing-cta {
-  font-size: 1rem;
-  padding: var(--space-md) var(--space-2xl);
-  font-weight: 600;
-  background: linear-gradient(135deg, rgba(212, 168, 83, 0.2), rgba(232, 88, 122, 0.2));
-  border-color: var(--color-gold-dim);
-  box-shadow: var(--shadow-glow-gold);
+  display: block;
+  margin: 2rem auto 0;
+  font-size: 1.4rem;
+  padding: 18px 80px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--color-gold), var(--color-rose));
+  color: #000;
+  border: none;
+  border-radius: 100px;
+  box-shadow: 0 0 30px rgba(212, 168, 83, 0.4);
   letter-spacing: 0.05em;
   transition: all var(--duration-normal) var(--ease-out-expo);
+  cursor: pointer;
 }
 
 .landing-cta:hover {
-  background: linear-gradient(135deg, rgba(212, 168, 83, 0.35), rgba(232, 88, 122, 0.35));
-  box-shadow: 0 0 50px rgba(212, 168, 83, 0.35);
-  transform: translateY(-2px);
+  background: #fff;
+  box-shadow: 0 0 50px rgba(255, 255, 255, 0.5);
+  transform: translateY(-4px) scale(1.05);
 }
 
 .landing-disclaimer {
@@ -1160,24 +1165,37 @@ body {
 
 /* ── Premium Lookbook Tray (Integrated Side Drawer) ── */
 .lookbook-tray {
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 400px;
-  background: rgba(10, 10, 15, 0.7);
+  position: absolute;
+  /* Changed from fixed to absolute within ui-layer */
+  top: 100px;
+  left: calc(50% - 750px);
+  /* Positioning it relative to the centered agent */
+  bottom: 120px;
+  width: 380px;
+  background: rgba(10, 10, 15, 0.6);
   backdrop-filter: blur(40px) saturate(180%);
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 32px;
   z-index: 100;
-  transform: translateX(-100%);
-  transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
+  transform: translateX(-50px);
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.6s cubic-bezier(0.19, 1, 0.22, 1);
   display: flex;
   flex-direction: column;
-  box-shadow: 20px 0 100px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 0.5);
 }
 
 .lookbook-tray.is-visible {
   transform: translateX(0);
+  opacity: 1;
+  pointer-events: all;
+}
+
+@media (max-width: 1600px) {
+  .lookbook-tray {
+    left: 40px;
+  }
 }
 
 .lookbook-header {

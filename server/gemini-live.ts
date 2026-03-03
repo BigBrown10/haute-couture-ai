@@ -31,7 +31,7 @@ export class GeminiLiveSession {
     private voiceName: string;
     private mode: AgentMode;
 
-    constructor(callbacks: LiveSessionCallbacks, voiceName: string = 'Despina', mode: AgentMode = 'stylist') {
+    constructor(callbacks: LiveSessionCallbacks, voiceName: string = 'Kore', mode: AgentMode = 'stylist') {
         this.callbacks = callbacks;
         this.voiceName = voiceName;
         this.mode = mode;

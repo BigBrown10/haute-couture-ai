@@ -43,11 +43,11 @@ export default function GlassControlBar({
                 onChange={(e) => onChangeVoice(e.target.value)}
                 aria-label="Select voice profile"
             >
-                <option value="Despina">Despina — Smooth</option>
-                <option value="Gacrux">Gacrux — Mature</option>
-                <option value="Zephyr">Zephyr — Bright</option>
-                <option value="Aoede">Aoede — Breezy</option>
-                <option value="Algenib">Algenib — Gravelly</option>
+                <option value="Kore">Despina (Kore) — Smooth</option>
+                <option value="Puck">Tony (Puck) — Sneakerhead</option>
+                <option value="Aoede">Gina (Aoede) — Bright</option>
+                <option value="Charon">Charon — Mature</option>
+                <option value="Fenrir">Fenrir — Gravelly</option>
             </select>
 
             {/* Camera toggle */}
