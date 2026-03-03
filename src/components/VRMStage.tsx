@@ -213,30 +213,30 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                     // 2. Lifelike Arm Posings (Bent elbows, natural resting, asymmetrical gestures)
                     const leftArm = currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm');
                     if (leftArm) {
-                        leftArm.rotation.z = 0.85; // Relaxed drop (prevents clipping through vests/jackets)
-                        leftArm.rotation.x = 0.15; // Point slightly forward
-                        leftArm.rotation.y = -0.1; // Twist slightly inward
+                        leftArm.rotation.z = 1.25; // Drop arms fully down
+                        leftArm.rotation.x = 0.3;  // Bring arms cleanly forward to rest gently in front of the hips (avoids side vest clipping)
+                        leftArm.rotation.y = -0.2; // Twist inward softly
                     }
                     const leftElbow = currentVrm.humanoid.getNormalizedBoneNode('leftLowerArm');
                     if (leftElbow) {
-                        // Bend elbow naturally. When talking loudly, gesture wrist upwards/forward organically
+                        // Bend elbow naturally forward. When talking loudly, gesture wrist upwards/forward organically
                         leftElbow.rotation.z = 0.1;
-                        leftElbow.rotation.x = -0.15 - (currentVol * (Math.sin(t * 3.2) + 1) * 0.25);
+                        leftElbow.rotation.x = -0.3 - (currentVol * (Math.sin(t * 3.2) + 1) * 0.25);
                     }
                     const leftHand = currentVrm.humanoid.getNormalizedBoneNode('leftHand');
                     if (leftHand) leftHand.rotation.x = -0.15; // Relaxed wrist droop downward
 
                     const rightArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
                     if (rightArm) {
-                        rightArm.rotation.z = -0.85; // Relaxed drop
-                        rightArm.rotation.x = 0.15;  // Point slightly forward
-                        rightArm.rotation.y = 0.1;   // Twist slightly inward
+                        rightArm.rotation.z = -1.25; // Mirror left drop
+                        rightArm.rotation.x = 0.3;   // Bring forward
+                        rightArm.rotation.y = 0.2;   // Twist inward
                     }
                     const rightElbow = currentVrm.humanoid.getNormalizedBoneNode('rightLowerArm');
                     if (rightElbow) {
                         // Asymmetrical gesture mapping so hands don't move identically like a robot
                         rightElbow.rotation.z = -0.1;
-                        rightElbow.rotation.x = -0.2 - (currentVol * (Math.cos(t * 2.7) + 1) * 0.25);
+                        rightElbow.rotation.x = -0.35 - (currentVol * (Math.cos(t * 2.7) + 1) * 0.25);
                     }
                     const rightHand = currentVrm.humanoid.getNormalizedBoneNode('rightHand');
                     if (rightHand) rightHand.rotation.x = -0.15;
