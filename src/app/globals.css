@@ -468,15 +468,28 @@ body {
 }
 
 .atelier-header h2 {
-  font-family: var(--font-serif);
   font-size: 1.5rem;
+  letter-spacing: 0.03em;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.text-gold {
+  font-family: var(--font-serif);
   font-weight: 600;
-  letter-spacing: 0.05em;
   background: linear-gradient(135deg, #d4a853, #f0c97a, #d4a853);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  margin-bottom: 4px;
+}
+
+.text-silver {
+  font-family: var(--font-sans);
+  font-weight: 300;
+  color: #e0e0e5;
 }
 
 .atelier-header p {

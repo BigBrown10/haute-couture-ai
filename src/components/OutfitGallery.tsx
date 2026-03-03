@@ -33,7 +33,10 @@ export default function OutfitGallery({ outfits }: OutfitGalleryProps) {
     return (
         <div className="atelier-container">
             <div className="atelier-header">
-                <h2>HEARTS AI Atelier</h2>
+                <h2>
+                    <span className="text-gold">HEARTS</span>{' '}
+                    <span className="text-silver">AI Atelier</span>
+                </h2>
                 <p>Your Design Assets & Patterns</p>
             </div>
 
