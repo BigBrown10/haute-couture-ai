@@ -27,7 +27,7 @@ export default function GlassControlBar({
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: '0 8px' }}
             >
                 <input type="file" accept="image/*" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={onUploadPhoto} />
-                📸
+                📤
             </label>
 
             {/* Try On Button */}

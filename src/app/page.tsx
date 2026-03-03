@@ -140,17 +140,27 @@ export default function HomePage() {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const result = e.target?.result as string;
-        if (result) {
-          const base64Data = result.split(',')[1];
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_W = 1024, MAX_H = 1024;
+        let w = img.width, h = img.height;
+        if (w > MAX_W || h > MAX_H) {
+          const ratio = Math.min(MAX_W / w, MAX_H / h);
+          w *= ratio; h *= ratio;
+        }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          const base64Data = dataUrl.split(',')[1];
           setUserPhoto(base64Data);
           sendVideoFrame(base64Data);
-          sendText("Hey bestie! I just uploaded a photo of myself. What do you think of my current fit? Can you show me something better?");
+          sendText("Hey bestie! I just uploaded a photo of myself. What do you think of my current style? Can you recommend something better?");
         }
       };
-      reader.readAsDataURL(file);
+      img.src = URL.createObjectURL(file);
     },
     [sendVideoFrame, sendText]
   );
@@ -160,19 +170,27 @@ export default function HomePage() {
       const file = event.target.files?.[0];
       if (!file) return;
 
-      const reader = new FileReader();
-      reader.onload = async (e) => {
-        const result = e.target?.result as string;
-        if (result) {
-          const base64Data = result.split(',')[1];
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const MAX_W = 1024, MAX_H = 1024;
+        let w = img.width, h = img.height;
+        if (w > MAX_W || h > MAX_H) {
+          const ratio = Math.min(MAX_W / w, MAX_H / h);
+          w *= ratio; h *= ratio;
+        }
+        canvas.width = w; canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          const base64Data = dataUrl.split(',')[1];
           setGarmentPhoto(base64Data);
-          // For now, we send both to the backend as frames. 
-          // The backend prompt will instruct the model to handle it.
           sendVideoFrame(base64Data);
-          sendText("Wait, what about this specific dress/item? Can you place this on me so I can see how it looks?");
+          sendText("Wait, what about this specific item? Can you place this on me so I can see how it looks?");
         }
       };
-      reader.readAsDataURL(file);
+      img.src = URL.createObjectURL(file);
     },
     [sendVideoFrame, sendText]
   );
