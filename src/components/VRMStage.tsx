@@ -50,8 +50,9 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
             const loader = new GLTFLoader();
             loader.register((parser) => new VRMLoaderPlugin(parser));
 
-            // Try to load the VRM first
-            const modelUrl = '/models/default_avatar.vrm';
+            // Try to load the VRM dynamically based on user persona
+            const safePersona = personaName ? personaName.toLowerCase() : 'despina';
+            const modelUrl = `/avatars/${safePersona}.vrm`;
 
             try {
                 // Check if file exists roughly (or just let loader catch it)
