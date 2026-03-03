@@ -241,6 +241,36 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                     const rightHand = currentVrm.humanoid.getNormalizedBoneNode('rightHand');
                     if (rightHand) rightHand.rotation.x = -0.15;
 
+                    // Relax the fingers so they aren't stiff flat boards
+                    const relaxFingers = (side: 'left' | 'right') => {
+                        const fingers = ['Thumb', 'Index', 'Middle', 'Ring', 'Little'];
+                        const joints = ['Proximal', 'Intermediate', 'Distal'];
+                        fingers.forEach(finger => {
+                            joints.forEach(joint => {
+                                const boneName = `${side}${finger}${joint}`;
+                                const node = currentVrm.humanoid.getNormalizedBoneNode(boneName as any);
+                                if (node) {
+                                    // Finger curling amount (thumb is less curled, pinky is most curled)
+                                    let curl = 0.15;
+                                    if (finger === 'Thumb') curl = 0.05;
+                                    else if (finger === 'Middle') curl = 0.2;
+                                    else if (finger === 'Ring') curl = 0.25;
+                                    else if (finger === 'Little') curl = 0.3;
+
+                                    // Add minor breathing variability so hands feel alive
+                                    curl += Math.sin(t * 2.0) * 0.02;
+
+                                    // Left hand normalizes to positive Z curl, Right hand to negative Z curl
+                                    node.rotation.z = side === 'left' ? curl : -curl;
+                                    // Angle fingers slightly inward to cup the palm naturally
+                                    node.rotation.x = side === 'left' ? -0.05 : 0.05;
+                                }
+                            });
+                        });
+                    };
+                    relaxFingers('left');
+                    relaxFingers('right');
+
                     // 3. Voice-Driven Body Sync (Head/Neck Micro-movements)
                     const neck = currentVrm.humanoid.getNormalizedBoneNode('neck');
                     if (neck) {
