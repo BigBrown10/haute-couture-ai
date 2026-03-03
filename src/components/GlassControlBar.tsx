@@ -10,6 +10,9 @@ interface GlassControlBarProps {
     onToggleCamera: () => void;
     onChangeVoice: (voice: string) => void;
     onEndSession: () => void;
+    canTryOn: boolean;
+    onUploadPhoto: () => void;
+    onTryOnItem: () => void;
 }
 
 export default function GlassControlBar({
@@ -22,6 +25,9 @@ export default function GlassControlBar({
     onToggleCamera,
     onChangeVoice,
     onEndSession,
+    canTryOn,
+    onUploadPhoto,
+    onTryOnItem,
 }: GlassControlBarProps) {
     return (
         <div className="control-bar">
@@ -34,6 +40,25 @@ export default function GlassControlBar({
                 style={{ width: 'auto', padding: '0 16px', borderRadius: '28px', fontSize: '0.9rem' }}
             >
                 {mode === 'stylist' ? '👗 Stylist' : '🎨 Designer'}
+            </button>
+
+            {/* Action Buttons */}
+            <button
+                className="glass-button secondary"
+                onClick={onUploadPhoto}
+                title="Upload Photo"
+                style={{ padding: '0 16px', borderRadius: '28px', fontSize: '0.9rem', marginLeft: '8px' }}
+            >
+                📸 Photo
+            </button>
+            <button
+                className="glass-button primary"
+                disabled={!canTryOn}
+                onClick={onTryOnItem}
+                title="Try On Item"
+                style={{ padding: '0 16px', borderRadius: '28px', fontSize: '0.9rem', marginLeft: '8px' }}
+            >
+                👗 Try On
             </button>
 
             {/* Voice selector */}

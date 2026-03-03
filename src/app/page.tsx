@@ -254,27 +254,6 @@ export default function HomePage() {
                   userVolume={userVolume}
                   agentVolume={agentVolume}
                 />
-
-                {/* Upload Buttons - Optimized & Modernized */}
-                {sessionReady && (
-                  <div className="quick-actions-bar">
-                    <button
-                      className="glass-button secondary"
-                      onClick={() => userFileInputRef.current?.click()}
-                    >
-                      <span className="icon">📸</span>
-                      Upload My Photo
-                    </button>
-                    <button
-                      className="glass-button primary"
-                      disabled={!userPhoto}
-                      onClick={() => garmentFileInputRef.current?.click()}
-                    >
-                      <span className="icon">👗</span>
-                      Try On Item
-                    </button>
-                  </div>
-                )}
               </div>
             )}
 
@@ -295,6 +274,9 @@ export default function HomePage() {
             onToggleCamera={() => setCameraEnabled((p) => !p)}
             onChangeVoice={setSelectedVoice}
             onEndSession={handleEndSession}
+            canTryOn={!!userPhoto}
+            onUploadPhoto={() => userFileInputRef.current?.click()}
+            onTryOnItem={() => garmentFileInputRef.current?.click()}
           />
         </div>
       )}

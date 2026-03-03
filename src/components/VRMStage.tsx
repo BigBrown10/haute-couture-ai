@@ -85,6 +85,20 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                         scene.add(vrm.scene);
                         vrm.scene.rotation.y = Math.PI;
 
+                        // Setup Relaxed Pose (A-Pose instead of T-Pose)
+                        if (vrm.humanoid) {
+                            const leftArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
+                            const rightArm = vrm.humanoid.getRawBoneNode('rightUpperArm');
+                            if (leftArm) {
+                                leftArm.rotation.z = 1.2;
+                                leftArm.rotation.x = 0.2;
+                            }
+                            if (rightArm) {
+                                rightArm.rotation.z = -1.2;
+                                rightArm.rotation.x = 0.2;
+                            }
+                        }
+
                         // Setup LookAt for mouse tracking
                         if (vrm.lookAt) {
                             vrm.lookAt.target = lookAtTargetRef.current;
