@@ -62,7 +62,7 @@ export default function OutfitGallery({ outfits }: OutfitGalleryProps) {
                                 className="download-fab"
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    handleDownload(outfit.imageBase64, outfit.id);
+                                    handleDownload(outfit.imageBase64 as string, outfit.id);
                                 }}
                             >
                                 📥

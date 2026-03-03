@@ -48,8 +48,8 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
         // Responsive camera setup based on container aspect ratio
         const containerAspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
         const camera = new THREE.PerspectiveCamera(30.0, containerAspect || 1.0, 0.1, 20.0);
-        // Back up the camera to frame the entire body standing on the runway
-        camera.position.set(0.0, 1.0, 3.8);
+        // Frame the exact full body
+        camera.position.set(0.0, 1.4, 4.5);
 
         const renderer = new THREE.WebGLRenderer({
             canvas: canvasRef.current,
