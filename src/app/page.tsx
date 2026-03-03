@@ -44,7 +44,7 @@ export default function HomePage() {
   }, []);
 
   // ── Audio Playback ─────────────────────────────────────
-  const { playChunk, stopPlayback, cleanup: cleanupAudio } = useAudioPlayback(setAgentVolume);
+  const { playChunk, stopPlayback, cleanup: cleanupAudio, initAudio } = useAudioPlayback(setAgentVolume);
 
   // ── Socket Connection ──────────────────────────────────
   const {
@@ -89,6 +89,9 @@ export default function HomePage() {
 
   // ── Session Lifecycle ──────────────────────────────────
   const handleStartSession = useCallback((persona: Persona) => {
+    // Eagerly initialize AudioContext strictly during the click handler for iOS Safari support
+    initAudio();
+
     setActivePersona(persona);
     setSelectedVoice(persona.voice);
     setMode(persona.mode);

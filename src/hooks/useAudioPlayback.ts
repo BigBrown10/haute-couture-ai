@@ -162,5 +162,5 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
         }
     }, [stopPlayback]);
 
-    return { playChunk, stopPlayback, cleanup, isPlaying };
+    return { playChunk, stopPlayback, cleanup, initAudio: getContext, isPlaying };
 }
