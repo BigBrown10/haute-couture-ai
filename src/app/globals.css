@@ -1017,10 +1017,8 @@ body {
 .avatar-ring {
   position: relative;
   width: 320px;
-  /* Larger card size */
   height: 320px;
   border-radius: 32px;
-  /* Square with softened corners */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1028,24 +1026,43 @@ body {
   border: 1px solid rgba(255, 255, 255, 0.15);
   background: rgba(0, 0, 0, 0.3);
   overflow: hidden;
-  /* Keep avatar and mouth inside the square */
-  /* Floating / Breathing animation always active */
-  animation: avatarFloat 6s ease-in-out infinite;
+
+  /* Applying the reactive 3D tilt from React */
+  transform: var(--tilt-transform, perspective(1000px) rotateX(0) rotateY(0));
   transform-style: preserve-3d;
+  transition: transform 0.1s linear;
+
   box-shadow: 0 20px 80px rgba(0, 0, 0, 0.6);
 }
 
 .active-avatar-img {
+  position: relative;
   width: 100%;
   height: 100%;
   border-radius: 0;
-  /* Let container handle the shape */
   object-fit: cover;
-  z-index: 2;
+  z-index: 3;
   transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275), filter 0.3s ease;
 
-  /* Reactive scaling driven by inline style (vibe-scale) */
+  /* Reactive scaling and lighting */
   transform: scale(var(--avatar-scale, 1)) translateY(var(--avatar-y, 0));
+  filter: brightness(calc(1 + var(--agent-volume, 0) * 0.2)) contrast(calc(1 + var(--agent-volume, 0) * 0.1));
+}
+
+.puppet-layer-base {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 110%;
+  /* Slightly larger to allow for shifting */
+  height: 110%;
+  object-fit: cover;
+  z-index: 1;
+  opacity: 0.4;
+  filter: blur(10px) saturate(1.5);
+  /* Counter-motion to simulate torso shift */
+  transform: translate(calc(var(--agent-volume, 0) * -10px), calc(var(--agent-volume, 0) * 5px)) scale(1.05);
+  transition: transform 0.15s ease-out;
 }
 
 /* Blinking effect overlay - adjusted for square face */

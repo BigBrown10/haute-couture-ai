@@ -28,12 +28,19 @@ export default function ActiveCallUI({
     const avatarScale = 1 + (agentVolume * 0.08); // Subtle "leaning in" 
     const avatarY = agentVolume * -12; // Slight upward pop when talking
 
+    // Hyper-Real Puppeteering logic
+    const rotationX = agentVolume * -15; // Lean forward
+    const rotationY = Math.sin(Date.now() / 1500) * (5 + agentVolume * 10); // Natural swaying
+    const tiltTransform = `perspective(1000px) rotateX(${rotationX}deg) rotateY(${rotationY}deg)`;
+
     return (
         <div className="active-call-ui" style={{
             '--vibe-scale': vibeScale,
             '--agent-intensity': agentIntensity,
             '--avatar-scale': avatarScale,
-            '--avatar-y': `${avatarY}px`
+            '--avatar-y': `${avatarY}px`,
+            '--tilt-transform': tiltTransform,
+            '--agent-volume': agentVolume
         } as React.CSSProperties}>
             <div className={`avatar-container ${!sessionReady ? 'connecting' : ''} ${isThinking ? 'thinking' : agentVolume > 0.05 ? 'speaking' : ''}`}>
                 {/* Grok-style fluid visualizer background */}
@@ -44,6 +51,10 @@ export default function ActiveCallUI({
                 </div>
 
                 <div className={`avatar-ring`}>
+                    {/* Base Puppet Layer (Torso/BG) */}
+                    <img src={persona.image} alt="" className="puppet-layer-base" />
+
+                    {/* Main Avatar Image (Head/Focus) */}
                     <img src={persona.image} alt={persona.name} className="active-avatar-img" />
 
                     {/* Lipsync Mouth Overlay */}
