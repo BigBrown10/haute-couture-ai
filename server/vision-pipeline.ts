@@ -109,35 +109,92 @@ export async function generateOutfitImage(
     }
 }
 
+export async function generateFashionSketch(
+    params: { prompt: string; conceptName: string }
+): Promise<GenerateOutfitResult> {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) return getMockResult({ prompt: params.prompt, eventContext: 'sketch' });
+
+    try {
+        const genAI = new GoogleGenAI({ apiKey });
+        const fullPrompt = [
+            `Create an exquisite, high-fashion sketch or runway concept mood board for a design titled: "${params.conceptName}".`,
+            'Style: Haute couture, avant-garde, highly artistic, editorial fashion illustration.',
+            'Aspect ratio: vertical portrait (9:16).',
+            '',
+            `Design Concept: ${params.prompt}`,
+            '',
+            'Requirements:',
+            '- Focus on dramatic silhouettes and fabric texture.',
+            '- Use an artistic medium (e.g., watercolor, charcoal, dramatic 3D render, minimalist ink).',
+            '- Must look like it comes from a legendary Parisian atelier.',
+        ].join('\n');
+
+        console.log('[VisionPipeline] Generating sketch with', VISION_MODEL, '...');
+
+        const response = await genAI.models.generateContent({
+            model: VISION_MODEL,
+            contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+            config: { responseModalities: ['TEXT', 'IMAGE'] as any },
+        });
+
+        const candidate = response.candidates?.[0];
+        let imageBase64: string | null = null;
+        let caption = '';
+
+        if (candidate?.content?.parts) {
+            for (const part of candidate.content.parts) {
+                if (part.inlineData?.data) imageBase64 = part.inlineData.data;
+                if (part.text) caption = part.text;
+            }
+        }
+
+        if (!imageBase64) throw new Error('Safety filter / No image returned');
+
+        return { imageBase64, caption: caption || `Sketch generated: ${params.conceptName}` };
+    } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error('[VisionPipeline] Sketch generation failed:', message);
+        return { imageBase64: null, caption: `[Error] ${message.substring(0, 200)}`, error: message };
+    }
+}
+
 function buildGenerationPrompt(params: GenerateOutfitParams): string {
+    if (!params.userFrameBase64) {
+        // Fallback to standard editorial generation if no camera frame
+        const lines = [
+            'Generate a high-end, editorial fashion photograph of the following outfit.',
+            'Style: Professional runway photography, clean studio background, perfect lighting.',
+            'Aspect ratio: vertical portrait (9:16).',
+            '',
+            `Event / Occasion: ${params.eventContext}`,
+            `Outfit: ${params.prompt}`,
+        ];
+        if (params.styleNotes) lines.push(`Styling Notes: ${params.styleNotes}`);
+        return lines.join('\n');
+    }
+
+    // Virtual Try-On (VTO) Image-to-Image Prompt
     const lines = [
-        'Generate a high-end, editorial fashion photograph of the following outfit.',
-        'Style: Professional runway photography, clean studio background, perfect lighting.',
-        'Aspect ratio: vertical portrait (9:16).',
+        'VIRTUAL TRY-ON TASK: Redress the person in the provided image with the new outfit described below.',
+        'YOU MUST STRICTLY PRESERVE THE IDENTITY, FACE, HAIR, RACE, AND POSE OF THE PERSON IN THE ORIGINAL IMAGE. DO NOT CHANGE WHO THEY ARE.',
+        'Preserve the original background and lighting as much as possible.',
+        'Only change the clothing they are wearing.',
         '',
-        `Event / Occasion: ${params.eventContext}`,
-        `Outfit: ${params.prompt}`,
+        `Target Event: ${params.eventContext}`,
+        `New Outfit to generate onto the subject: ${params.prompt}`,
     ];
 
     if (params.styleNotes) {
         lines.push(`Styling Notes: ${params.styleNotes}`);
     }
 
-    if (params.userFrameBase64) {
-        lines.push(
-            '',
-            'The attached image shows the user. Generate the recommended outfit styled for a similar body type.',
-            'Preserve natural lighting and render against an elegant background.',
-        );
-    }
-
     lines.push(
         '',
         'Requirements:',
-        '- Realistic fabric textures with visible weave and drape',
-        '- Editorial lighting (soft key light, rim accent)',
-        '- The outfit should communicate luxury and intentional design',
-        '- Full body or three-quarter length shot',
+        '- Photorealistic image manipulation.',
+        '- The new clothes must fit the subject naturally, respecting the physics of drape and gravity on their specific pose.',
+        '- Seamless blending with the original image.',
     );
 
     return lines.join('\n');

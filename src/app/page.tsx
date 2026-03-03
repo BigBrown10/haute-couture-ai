@@ -36,6 +36,7 @@ export default function HomePage() {
   const [micEnabled, setMicEnabled] = useState(true);
   const [cameraEnabled, setCameraEnabled] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState('Despina');
+  const [mode, setMode] = useState<'stylist' | 'designer'>('stylist');
 
   const messageIdRef = useRef(0);
   const sessionActiveRef = useRef(false);
@@ -98,7 +99,7 @@ export default function HomePage() {
     setTimeout(async () => {
       setSessionActive(true);
       sessionActiveRef.current = true;
-      startSession(selectedVoice);
+      startSession(selectedVoice, mode);
 
       // Start mic capture
       try {
@@ -107,7 +108,7 @@ export default function HomePage() {
         console.warn('[Page] Mic capture failed, text-only mode:', err);
       }
     }, 600);
-  }, [startSession, selectedVoice, startCapture]);
+  }, [startSession, selectedVoice, mode, startCapture]);
 
   const handleEndSession = useCallback(() => {
     sessionActiveRef.current = false;
@@ -157,9 +158,13 @@ export default function HomePage() {
   // Outfit generation request
   const handleRequestOutfit = useCallback(
     (prompt: string) => {
-      requestOutfit(prompt, 'styling session', 'Based on the current critique');
+      requestOutfit(
+        prompt,
+        mode === 'stylist' ? 'Virtual Try-On' : 'Haute Couture Sketch',
+        mode === 'stylist' ? 'Fit strictly to the user\'s body type in the frame' : 'Avant-garde artistic vision'
+      );
     },
-    [requestOutfit]
+    [requestOutfit, mode]
   );
 
   return (
@@ -215,9 +220,26 @@ export default function HomePage() {
           />
 
           <GlassControlBar
+            mode={mode}
             micEnabled={micEnabled}
             cameraEnabled={cameraEnabled}
             selectedVoice={selectedVoice}
+            onToggleMode={() => {
+              // Note: Changing mode mid-session requires a restart for now
+              setMode((p) => {
+                const newMode = p === 'stylist' ? 'designer' : 'stylist';
+                if (sessionActiveRef.current) {
+                  addTranscript(`[System] Switched to ${newMode === 'stylist' ? 'Stylist' : 'Designer'} mode. Reconnecting...`, 'agent');
+                  endSession();
+                  setTimeout(() => {
+                    setSessionActive(true);
+                    sessionActiveRef.current = true;
+                    startSession(selectedVoice, newMode);
+                  }, 1000);
+                }
+                return newMode;
+              });
+            }}
             onToggleMic={handleToggleMic}
             onToggleCamera={() => setCameraEnabled((p) => !p)}
             onChangeVoice={setSelectedVoice}

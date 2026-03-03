@@ -1,9 +1,11 @@
 'use client';
 
 interface GlassControlBarProps {
+    mode: 'stylist' | 'designer';
     micEnabled: boolean;
     cameraEnabled: boolean;
     selectedVoice: string;
+    onToggleMode: () => void;
     onToggleMic: () => void;
     onToggleCamera: () => void;
     onChangeVoice: (voice: string) => void;
@@ -11,9 +13,11 @@ interface GlassControlBarProps {
 }
 
 export default function GlassControlBar({
+    mode,
     micEnabled,
     cameraEnabled,
     selectedVoice,
+    onToggleMode,
     onToggleMic,
     onToggleCamera,
     onChangeVoice,
@@ -21,6 +25,17 @@ export default function GlassControlBar({
 }: GlassControlBarProps) {
     return (
         <div className="control-bar">
+            {/* Mode Toggle */}
+            <button
+                className={`glass-button control-btn ${mode === 'designer' ? 'active' : ''}`}
+                onClick={onToggleMode}
+                title={mode === 'stylist' ? 'Switch to Designer Mode' : 'Switch to Stylist Mode'}
+                aria-label="Toggle Mode"
+                style={{ width: 'auto', padding: '0 16px', borderRadius: '28px', fontSize: '0.9rem' }}
+            >
+                {mode === 'stylist' ? '👗 Stylist' : '🎨 Designer'}
+            </button>
+
             {/* Voice selector */}
             <select
                 className="voice-select"

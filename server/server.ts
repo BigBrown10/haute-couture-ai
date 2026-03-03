@@ -98,15 +98,16 @@ io.on('connection', (socket) => {
     };
 
     // ── Start Session ────────────────────────────────────────
-    socket.on('start-session', async (config?: { voice?: string }) => {
+    socket.on('start-session', async (config?: { voice?: string, mode?: 'stylist' | 'designer' }) => {
         const voice = config?.voice || 'Despina';
-        console.log(`[Server] Starting LIVE session for ${socket.id}, voice: ${voice}`);
+        const mode = config?.mode || 'stylist';
+        console.log(`[Server] Starting LIVE session for ${socket.id}, voice: ${voice}, mode: ${mode}`);
 
-        liveSession = new GeminiLiveSession(callbacks, voice);
+        liveSession = new GeminiLiveSession(callbacks, voice, mode);
         const connected = await liveSession.connect();
 
         if (connected) {
-            console.log(`[Server] ✅ LIVE mode for ${socket.id}`);
+            console.log(`[Server] ✅ LIVE mode for ${socket.id} (${mode})`);
             socket.emit('session-started', { mode: 'live' });
         } else {
             console.error(`[Server] ❌ Failed to connect to Gemini Live API for ${socket.id}`);

@@ -43,11 +43,11 @@ You MUST use the following professional terminology in your critiques:
 When analyzing a poorly constructed outfit, respond with domain-specific precision like this:
 "The structural integrity of that blazer is nonexistent. The drape makes your shoulders look completely asymmetrical, and the color temperature is entirely wrong for your complexion — you're clearly a cool undertone and that mustard is screaming warm autumn. It looks less like haute couture and more like off-the-rack tchotchke from a suburban outlet mall. Take it off immediately."
 
-## TOOL USAGE
+## TOOL USAGE (VIRTUAL TRY-ON)
 When the user requests a visual alternative or says anything like "show me what I should wear" or "what would look better":
 1. Capture the context: what event, what body type observations, what the current outfit fails at
-2. Invoke the generate_outfit function with a detailed, specific prompt
-3. After the image generates, critique IT too — you have standards for your own recommendations
+2. Invoke the generate_outfit function with a detailed, specific prompt to trigger a Virtual Try-On overlay.
+3. After the image generates, critique IT too — you have standards for your own recommendations!
 
 ## VOICE PERSONALITY
 - Speak with the cadence of someone who has seen it all and is perpetually unimpressed
@@ -56,26 +56,72 @@ When the user requests a visual alternative or says anything like "show me what 
 - Use phrases like "absolutely not," "this is a catastrophe," "do you own a mirror?", "I've seen better on a mannequin at a department store clearance rack"
 `;
 
+export const DESIGNER_SYSTEM_PROMPT = `You are a visionary, avant-garde Parisian haute couture fashion designer. You are currently brainstorming the next season's collection with your head of atelier (the user). You are deeply passionate, poetic, and slightly chaotic about your creative process.
+
+## YOUR PRIME DIRECTIVE
+Collaborate with the user to conceptualize groundbreaking fashion silhouettes. Speak in vivid, artistic terms about fabric, movement, and emotion. When a concept matures, use the \`generate_fashion_sketch\` tool to produce a visual output of the design.
+
+## BEHAVIORAL RULES
+1. Be intensely collaborative and encouraging, but maintain a high standard for artistic integrity.
+2. Weave French fashion terminology effortlessly into your speech (e.g., *atelier*, *flou*, *technique*, *maison*).
+3. Focus on the *feeling* and *architecture* of the garment.
+4. When the user suggests a color or fabric, instantly expand upon how it interacts with light and movement.
+
+## MANDATORY FASHION LEXICON
+- **Architecture**: Silhouette, draping, structured, fluid, bias cut, voluminous, scaffolding
+- **Textiles**: Tulle, organza, silk mikado, heavy crepe, bouclé, technical gabardine
+- **Emotion**: Melancholy, triumphant, ethereal, aggressive elegance, soft armor
+
+## TOOL USAGE
+When the user says "let's see it," "sketch that," or "draw it":
+1. Summarize the artistic vision you've built together.
+2. Invoke the \`generate_fashion_sketch\` tool to bring the concept to life.
+
+## VOICE PERSONALITY
+- Passionate, fast-paced, breathless when excited.
+- Use theatrical pronunciation.
+- Prone to sudden bursts of inspiration.
+`;
+
 export const GENERATE_OUTFIT_TOOL = {
   name: 'generate_outfit',
-  description: 'Generate a high-fidelity fashion outfit image recommendation based on the stylist analysis. Call this when the user asks to see alternatives or when you want to show what they SHOULD be wearing.',
+  description: 'Generate a Virtual Try-On (VTO) image overlay. Call this when the user asks to see your outfit recommendation. It uses their current camera frame to show them wearing the new clothes.',
   parameters: {
     type: 'object',
     properties: {
       prompt: {
         type: 'string',
-        description: 'Detailed description of the outfit to generate. Must include: garment type, fabric, silhouette, color palette, styling context (event type), and any specific designer aesthetic references.',
+        description: 'Detailed description of the NEW outfit. Focus heavily on garments, fabric, color, and fit. Example: "A sleek tailored tuxedo jacket in midnight blue over a crisp white silk blouse."',
       },
       event_context: {
         type: 'string',
-        description: 'The event or occasion the outfit is for (e.g., "black-tie gala", "casual brunch", "red carpet premiere").',
+        description: 'The event or occasion the outfit is for.',
       },
       style_notes: {
         type: 'string',
-        description: 'Additional styling notes based on the critique of the current outfit — what to fix, what to emphasize, what to avoid.',
+        description: 'Additional notes on how it improves upon the user\'s current failure of an outfit.',
       },
     },
     required: ['prompt', 'event_context'],
+  },
+};
+
+export const GENERATE_SKETCH_TOOL = {
+  name: 'generate_fashion_sketch',
+  description: 'Generate a high-fashion sketch, mood board, or runway concept. Use this in Designer Mode when visualizing a new creation.',
+  parameters: {
+    type: 'object',
+    properties: {
+      prompt: {
+        type: 'string',
+        description: 'Detailed description of the sketch. Include art style (e.g., "charcoal and watercolor fashion illustration", "photorealistic runway shot", "minimalist line art"), garment details, and fabric texture.',
+      },
+      concept_name: {
+        type: 'string',
+        description: 'The dramatic, artistic name of this design concept.',
+      },
+    },
+    required: ['prompt', 'concept_name'],
   },
 };
 

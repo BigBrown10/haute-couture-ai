@@ -7,8 +7,8 @@
  */
 
 import { GoogleGenAI, type Session, type LiveServerMessage, type Content } from '@google/genai';
-import { PERSONA_SYSTEM_PROMPT, GENERATE_OUTFIT_TOOL, SAFETY_SETTINGS } from './persona-prompt';
-import { generateOutfitImage } from './vision-pipeline';
+import { PERSONA_SYSTEM_PROMPT, DESIGNER_SYSTEM_PROMPT, GENERATE_OUTFIT_TOOL, GENERATE_SKETCH_TOOL, SAFETY_SETTINGS } from './persona-prompt';
+import { generateOutfitImage, generateFashionSketch } from './vision-pipeline';
 
 const LIVE_MODEL = 'gemini-2.5-flash-native-audio-latest';
 
@@ -21,16 +21,20 @@ export interface LiveSessionCallbacks {
     onInterrupted: () => void;
 }
 
+export type AgentMode = 'stylist' | 'designer';
+
 export class GeminiLiveSession {
     private session: Session | null = null;
     private callbacks: LiveSessionCallbacks;
     private latestVideoFrame: string | null = null;
     private isConnected = false;
     private voiceName: string;
+    private mode: AgentMode;
 
-    constructor(callbacks: LiveSessionCallbacks, voiceName: string = 'Despina') {
+    constructor(callbacks: LiveSessionCallbacks, voiceName: string = 'Despina', mode: AgentMode = 'stylist') {
         this.callbacks = callbacks;
         this.voiceName = voiceName;
+        this.mode = mode;
     }
 
     async connect(): Promise<boolean> {
@@ -43,16 +47,17 @@ export class GeminiLiveSession {
         try {
             const genAI = new GoogleGenAI({ apiKey });
 
-            this.callbacks.onThinking('Connecting to Gemini Live API...');
+            const isDesigner = this.mode === 'designer';
+            this.callbacks.onThinking(`Connecting to Gemini Live API (${isDesigner ? 'Designer' : 'Stylist'} Mode)...`);
 
             this.session = await genAI.live.connect({
                 model: LIVE_MODEL,
                 config: {
                     responseModalities: ['AUDIO'] as any,
                     systemInstruction: {
-                        parts: [{ text: PERSONA_SYSTEM_PROMPT }],
+                        parts: [{ text: isDesigner ? DESIGNER_SYSTEM_PROMPT : PERSONA_SYSTEM_PROMPT }],
                     },
-                    tools: [{ functionDeclarations: [GENERATE_OUTFIT_TOOL] }],
+                    tools: [{ functionDeclarations: [isDesigner ? GENERATE_SKETCH_TOOL : GENERATE_OUTFIT_TOOL] }],
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
@@ -64,8 +69,8 @@ export class GeminiLiveSession {
                 callbacks: {
                     onopen: () => {
                         this.isConnected = true;
-                        console.log('[GeminiLive] ✅ WebSocket opened');
-                        this.callbacks.onThinking('Connected — the stylist is watching...');
+                        console.log(`[GeminiLive] ✅ WebSocket opened in ${this.mode} mode`);
+                        this.callbacks.onThinking(`Connected — ${isDesigner ? 'the atelier is open' : 'the stylist is watching'}...`);
                     },
                     onmessage: (message: LiveServerMessage) => {
                         this.handleMessage(message);
@@ -83,7 +88,7 @@ export class GeminiLiveSession {
             });
 
             this.isConnected = true;
-            console.log('[GeminiLive] ✅ Connected to', LIVE_MODEL, 'with voice', this.voiceName);
+            console.log(`[GeminiLive] ✅ Connected to ${LIVE_MODEL} as ${this.mode}`);
             return true;
 
         } catch (error: unknown) {
@@ -193,17 +198,16 @@ export class GeminiLiveSession {
                 }
             }
 
-            // Handle function calls (tool invocations — e.g., generate_outfit)
+            // Handle function calls (tool invocations)
             if (message.toolCall) {
                 const calls = message.toolCall.functionCalls;
                 if (calls) {
                     for (const call of calls) {
-                        if (call.name === 'generate_outfit') {
-                            await this.handleGenerateOutfit({
-                                id: call.id,
-                                name: call.name,
-                                args: call.args,
-                            });
+                        const callName = call.name || 'unknown';
+                        if (callName === 'generate_outfit') {
+                            await this.handleGenerateOutfit({ id: call.id, name: callName, args: call.args });
+                        } else if (callName === 'generate_fashion_sketch') {
+                            await this.handleGenerateSketch({ id: call.id, name: callName, args: call.args });
                         }
                     }
                 }
@@ -212,7 +216,7 @@ export class GeminiLiveSession {
             // Handle setup complete
             if (message.setupComplete) {
                 console.log('[GeminiLive] Setup complete — session ready');
-                this.callbacks.onThinking('Connected — the stylist is watching...');
+                this.callbacks.onThinking(`Connected — ${this.mode === 'designer' ? 'the atelier is open' : 'the stylist is watching'}...`);
             }
         } catch (error) {
             console.error('[GeminiLive] Error handling message:', error);
@@ -225,7 +229,7 @@ export class GeminiLiveSession {
     private async handleGenerateOutfit(call: { id?: string; name: string; args?: Record<string, unknown> }): Promise<void> {
         const args = (call.args || {}) as Record<string, string>;
 
-        this.callbacks.onThinking('✨ Generating outfit recommendation...');
+        this.callbacks.onThinking('✨ Generating Virtual Try-On overlay...');
 
         const result = await generateOutfitImage({
             prompt: args.prompt || 'A sophisticated, well-tailored outfit',
@@ -237,14 +241,39 @@ export class GeminiLiveSession {
         this.callbacks.onGeneratedOutfit(result.imageBase64, result.caption);
         this.callbacks.onThinking('');
 
-        // Send function response back to the Live API
+        // Send function response back
+        await this.sendToolResponse(call.id || 'unknown', 'generate_outfit', result);
+    }
+
+    /**
+     * Handle the generate_fashion_sketch function call from the Live API.
+     */
+    private async handleGenerateSketch(call: { id?: string; name: string; args?: Record<string, unknown> }): Promise<void> {
+        const args = (call.args || {}) as Record<string, string>;
+
+        this.callbacks.onThinking('🎨 Sketching haute couture concept...');
+
+        const result = await generateFashionSketch({
+            prompt: args.prompt || 'Avant-garde fashion silhouette',
+            conceptName: args.concept_name || 'Untitled masterpiece',
+        });
+
+        // We reuse the onGeneratedOutfit callback since the frontend just needs to display the image
+        this.callbacks.onGeneratedOutfit(result.imageBase64, result.caption);
+        this.callbacks.onThinking('');
+
+        // Send function response back
+        await this.sendToolResponse(call.id || 'unknown', 'generate_fashion_sketch', result);
+    }
+
+    private async sendToolResponse(id: string, name: string, result: { error?: string; caption: string; imageBase64: string | null }) {
         if (this.session && this.isConnected) {
             try {
                 await this.session.sendToolResponse({
                     functionResponses: [
                         {
-                            id: call.id || 'unknown',
-                            name: 'generate_outfit',
+                            id,
+                            name,
                             response: {
                                 success: !result.error,
                                 caption: result.caption,

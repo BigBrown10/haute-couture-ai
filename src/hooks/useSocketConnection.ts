@@ -82,7 +82,7 @@ export function useSocketConnection(props: UseSocketConnectionProps) {
         };
     }, []);
 
-    const startSession = useCallback((voice?: string) => {
+    const startSession = useCallback((voice?: string, mode?: 'stylist' | 'designer') => {
         const socket = socketRef.current;
         if (!socket) return;
 
@@ -91,7 +91,7 @@ export function useSocketConnection(props: UseSocketConnectionProps) {
         }
 
         const emitStart = () => {
-            socket.emit('start-session', { voice });
+            socket.emit('start-session', { voice, mode });
         };
 
         if (socket.connected) {
