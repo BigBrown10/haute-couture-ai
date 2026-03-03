@@ -135,9 +135,6 @@ export default function HomePage() {
   }, [startCapture, stopCapture]);
 
   // ── Photo Upload ───────────────────────────────────────
-  const userFileInputRef = useRef<HTMLInputElement>(null);
-  const garmentFileInputRef = useRef<HTMLInputElement>(null);
-
   const handleUserPhoto = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
@@ -194,21 +191,6 @@ export default function HomePage() {
 
   return (
     <main className="app-container">
-      {/* Hidden Inputs */}
-      <input
-        type="file"
-        accept="image/*"
-        ref={userFileInputRef}
-        style={{ display: 'none' }}
-        onChange={handleUserPhoto}
-      />
-      <input
-        type="file"
-        accept="image/*"
-        ref={garmentFileInputRef}
-        style={{ display: 'none' }}
-        onChange={handleGarmentPhoto}
-      />
 
       {/* Background Dimmer */}
       {sessionActive && <div className="camera-overlay" />}
@@ -280,8 +262,8 @@ export default function HomePage() {
             onChangeVoice={setSelectedVoice}
             onEndSession={handleEndSession}
             canTryOn={!!userPhoto}
-            onUploadPhoto={() => userFileInputRef.current?.click()}
-            onTryOnItem={() => garmentFileInputRef.current?.click()}
+            onUploadPhoto={handleUserPhoto}
+            onTryOnItem={handleGarmentPhoto}
           />
         </div>
       )}

@@ -7,8 +7,8 @@ interface GlassControlBarProps {
     onChangeVoice: (voice: string) => void;
     onEndSession: () => void;
     canTryOn: boolean;
-    onUploadPhoto: () => void;
-    onTryOnItem: () => void;
+    onUploadPhoto: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onTryOnItem: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }
 
 export default function GlassControlBar({
@@ -30,33 +30,47 @@ export default function GlassControlBar({
                 onChange={(e) => onChangeVoice(e.target.value)}
                 aria-label="Select voice profile"
             >
-                <option value="Kore">Despina (Kore) — Smooth</option>
-                <option value="Puck">Tony (Puck) — Sneakerhead</option>
-                <option value="Aoede">Gina (Aoede) — Bright</option>
-                <option value="Charon">Charon — Mature</option>
-                <option value="Fenrir">Fenrir — Gravelly</option>
+                <option value="Kore">Smooth</option>
+                <option value="Puck">Sneakerhead</option>
+                <option value="Aoede">Bright</option>
+                <option value="Charon">Mature</option>
+                <option value="Fenrir">Gravelly</option>
             </select>
 
             {/* Upload Button */}
-            <button
-                className="glass-button control-btn"
-                onClick={onUploadPhoto}
+            <label
+                className="glass-button control-btn upload-label"
                 title="Upload Photo"
                 aria-label="Upload Photo"
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: 0 }}
             >
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onUploadPhoto} />
                 📤
-            </button>
+            </label>
 
             {/* Try On Button */}
-            <button
-                className={`glass-button control-btn ${canTryOn ? '' : 'danger'} `}
-                onClick={onTryOnItem}
-                disabled={!canTryOn}
+            <label
+                className={`glass-button control-btn tryon-label ${canTryOn ? '' : 'disabled'}`}
                 title="Try On Item"
                 aria-label="Try On Item"
+                style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: canTryOn ? 'pointer' : 'not-allowed',
+                    margin: 0,
+                    opacity: canTryOn ? 1 : 0.5
+                }}
             >
+                <input
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={canTryOn ? onTryOnItem : undefined}
+                    disabled={!canTryOn}
+                />
                 👗
-            </button>
+            </label>
 
             {/* Mic toggle — large center button */}
             <button
