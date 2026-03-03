@@ -238,9 +238,15 @@ export default function HomePage() {
             </div>
           </header>
 
-          <div className="main-content" style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="main-content" style={{
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '2rem',
+            minHeight: 'calc(100vh - 160px)'
+          }}>
             {activePersona && (
-              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+              <div className="video-call-box">
                 <ActiveCallUI
                   persona={activePersona}
                   isThinking={!!thinkingStatus}
@@ -249,30 +255,32 @@ export default function HomePage() {
                   agentVolume={agentVolume}
                 />
 
-                {/* Upload Buttons */}
+                {/* Upload Buttons - Optimized & Modernized */}
                 {sessionReady && (
-                  <div style={{ marginTop: '2rem', display: 'flex', gap: '16px' }}>
+                  <div className="quick-actions-bar">
                     <button
-                      className="glass-button"
-                      style={{ padding: '16px 24px', fontSize: '1rem', gap: '8px' }}
+                      className="glass-button secondary"
                       onClick={() => userFileInputRef.current?.click()}
                     >
-                      📸 Upload My Photo
+                      <span className="icon">📸</span>
+                      Upload My Photo
                     </button>
                     <button
-                      className="glass-button"
-                      style={{ padding: '16px 24px', fontSize: '1rem', gap: '8px', border: userPhoto ? '1px solid var(--color-gold)' : '' }}
+                      className="glass-button primary"
                       disabled={!userPhoto}
                       onClick={() => garmentFileInputRef.current?.click()}
                     >
-                      👗 Try On Specific Item
+                      <span className="icon">👗</span>
+                      Try On Item
                     </button>
                   </div>
                 )}
               </div>
             )}
 
-            <OutfitGallery outfits={outfits} />
+            <div className="gallery-section">
+              <OutfitGallery outfits={outfits} />
+            </div>
           </div>
 
           <GlassControlBar

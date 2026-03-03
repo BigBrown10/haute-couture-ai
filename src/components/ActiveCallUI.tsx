@@ -21,13 +21,19 @@ export default function ActiveCallUI({
     agentVolume = 0
 }: ActiveCallUIProps) {
     // Combine volumes for a "vibe" scale
-    const vibeScale = 1 + (agentVolume * 0.5) + (userVolume * 0.2);
+    const vibeScale = 1 + (agentVolume * 0.4) + (userVolume * 0.1);
     const agentIntensity = Math.min(1, agentVolume * 2);
+
+    // Pseudo-3D motion variables
+    const avatarScale = 1 + (agentVolume * 0.08); // Subtle "leaning in" 
+    const avatarY = agentVolume * -12; // Slight upward pop when talking
 
     return (
         <div className="active-call-ui" style={{
             '--vibe-scale': vibeScale,
-            '--agent-intensity': agentIntensity
+            '--agent-intensity': agentIntensity,
+            '--avatar-scale': avatarScale,
+            '--avatar-y': `${avatarY}px`
         } as React.CSSProperties}>
             <div className={`avatar-container ${!sessionReady ? 'connecting' : ''} ${isThinking ? 'thinking' : agentVolume > 0.05 ? 'speaking' : ''}`}>
                 {/* Grok-style fluid visualizer background */}
@@ -39,6 +45,12 @@ export default function ActiveCallUI({
 
                 <div className={`avatar-ring`}>
                     <img src={persona.image} alt={persona.name} className="active-avatar-img" />
+
+                    {/* Lipsync Mouth Overlay */}
+                    <div className="mouth-overlay" style={{
+                        transform: `scaleY(${Math.max(0.1, agentVolume * 5)})`,
+                        opacity: agentVolume > 0.05 ? 1 : 0
+                    }}></div>
                 </div>
             </div>
 
