@@ -274,12 +274,8 @@ export default function HomePage() {
           </div>
 
           <GlassControlBar
-            mode={mode}
             micEnabled={micEnabled}
             selectedVoice={selectedVoice}
-            onToggleMode={() => {
-              // Toggle is now hidden or handled via end session in the Voice-Only UI
-            }}
             onToggleMic={handleToggleMic}
             onChangeVoice={setSelectedVoice}
             onEndSession={handleEndSession}
