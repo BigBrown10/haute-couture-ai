@@ -532,6 +532,8 @@ body {
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-lg) var(--space-xl) var(--space-xl);
+  position: relative;
+  z-index: 50;
 }
 
 .control-btn {

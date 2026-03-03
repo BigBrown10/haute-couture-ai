@@ -107,13 +107,25 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
                         const a = (bandA / 11) / 255;
                         const i = (bandI / 16) / 255;
 
+                        // Find Dominant Vowel
+                        const total = Math.max(0.1, a + i + u);
+                        const aDom = a / total;
+                        const iDom = i / total;
+                        const uDom = u / total;
+
+                        // Only apply the loudest shape to avoid mixing them into a giant open mouth!
+                        const envelope = Math.min(1.0, volume * 8.0);
+                        const isA = aDom > 0.4;
+                        const isI = iDom > 0.4;
+                        const isU = uDom > 0.4;
+
                         onVolumeChange({
                             volume,
-                            a: Math.min(1.0, a * 1.5), // Boost specific bandwidths to clarify mouth shapes
-                            i: Math.min(1.0, i * 2.0),
-                            u: Math.min(1.0, u * 1.2),
-                            e: Math.min(1.0, i * 1.5), // e is similar to i
-                            o: Math.min(1.0, u * 1.5), // o is similar to u
+                            a: isA ? envelope : Math.max(0, envelope - 0.5), // fallback slightly
+                            i: isI ? envelope : 0,
+                            u: isU ? envelope : 0,
+                            e: isI ? envelope : 0,
+                            o: isU ? envelope : 0,
                         });
                         animationFrameRef.current = requestAnimationFrame(updateVolume);
                     } else {

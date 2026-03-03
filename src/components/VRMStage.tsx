@@ -48,7 +48,8 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
         // Responsive camera setup based on container aspect ratio
         const containerAspect = containerRef.current.clientWidth / containerRef.current.clientHeight;
         const camera = new THREE.PerspectiveCamera(30.0, containerAspect || 1.0, 0.1, 20.0);
-        camera.position.set(0.0, 1.2, 2.6); // Frame wider to show torso properly
+        // Back up the camera to frame the entire body standing on the runway
+        camera.position.set(0.0, 1.0, 3.8);
 
         const renderer = new THREE.WebGLRenderer({
             canvas: canvasRef.current,
@@ -62,7 +63,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
         // --- Orbit Controls ---
         // Allow the user to drag the screen to spin and zoom around the agent interactively!
         const controls = new OrbitControls(camera, renderer.domElement);
-        controls.target.set(0.0, 1.1, 0.0); // Center orbit around chest level
+        controls.target.set(0.0, 0.8, 0.0); // Center orbit lower, near the waist for full body framing
         controls.enablePan = false;
         controls.enableZoom = true;
         controls.minDistance = 0.5;
