@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 
 interface VRMStageProps {
@@ -62,8 +62,8 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 vrm.scene.rotation.y = Math.PI; // Face the camera
 
                 // Finalize scene
-                VRMUtils.removeUnusedVertices(gltf.scene);
-                VRMUtils.combineLookAt(vrm);
+                VRMUtils.removeUnnecessaryVertices(gltf.scene);
+                // In v3, lookAt is typically handled via the animator or plugin settings
             },
             (progress) => console.log('Loading VRM...', (progress.loaded / progress.total * 100).toFixed(2), '%'),
             (error) => console.error('VRM Load Error:', error)
