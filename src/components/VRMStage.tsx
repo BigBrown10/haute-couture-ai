@@ -97,19 +97,8 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                         scene.add(vrm.scene);
                         vrm.scene.rotation.y = Math.PI;
 
-                        // Setup Relaxed Pose (A-Pose instead of T-Pose)
-                        if (vrm.humanoid) {
-                            const leftArm = vrm.humanoid.getRawBoneNode('leftUpperArm');
-                            const rightArm = vrm.humanoid.getRawBoneNode('rightUpperArm');
-                            if (leftArm) {
-                                leftArm.rotation.z = -1.2;
-                                leftArm.rotation.x = 0.2;
-                            }
-                            if (rightArm) {
-                                rightArm.rotation.z = 1.2;
-                                rightArm.rotation.x = 0.2;
-                            }
-                        }
+                        // Remove static raw bone assignment here, it gets overwritten.
+                        // We will enforce the relaxed pose and procedural animation inside the render loop.
 
                         // Setup LookAt for mouse tracking
                         if (vrm.lookAt) {
@@ -174,10 +163,42 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
             if (currentVrm) {
                 const t = Date.now() / 1000;
 
-                // Lip Sync based on Agent Volume
+                // --- Voice and Body Sync Animation ---
                 const currentVol = volumeRef.current;
-                const mouthOpen = Math.min(1.0, currentVol * 5.0); // Boosted sensitivity
+
+                // 1. Procedural Idle Breath and Sway (Body Sync)
+                if (currentVrm.humanoid) {
+                    const spine = currentVrm.humanoid.getNormalizedBoneNode('spine');
+                    if (spine) {
+                        spine.rotation.x = Math.sin(t * 1.5) * 0.04;     // breathing
+                        spine.rotation.y = Math.sin(t * 0.5) * 0.03;     // gentle sway
+                    }
+
+                    // 2. Enforce Relaxed A-Pose (Arms Down) every frame
+                    const leftArm = currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm');
+                    if (leftArm) {
+                        leftArm.rotation.z = 1.2;  // Left arm drops down
+                        leftArm.rotation.x = 0.1;
+                    }
+                    const rightArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
+                    if (rightArm) {
+                        rightArm.rotation.z = -1.2; // Right arm drops down
+                        rightArm.rotation.x = 0.1;
+                    }
+
+                    // 3. Voice-Driven Body Sync (Head/Neck Bobbing)
+                    const neck = currentVrm.humanoid.getNormalizedBoneNode('neck');
+                    if (neck) {
+                        // Blend idle head movement + speaking emphasis bob
+                        neck.rotation.x = (Math.sin(t * 0.8) * 0.05) + (currentVol * 0.3);
+                        neck.rotation.y = Math.sin(t * 0.3) * 0.05;
+                    }
+                }
+
+                // Lip Sync based on Agent Volume
+                const mouthOpen = Math.min(1.0, currentVol * 6.0); // Boosted sensitivity
                 currentVrm.expressionManager?.setValue('aa', mouthOpen);
+                currentVrm.expressionManager?.setValue('ih', currentVol > 0.1 ? currentVol * 4.0 : 0); // Adds variance to mouth shape
 
                 // Thinking (Blink Rapidly or hold)
                 if (thinkingRef.current) {
