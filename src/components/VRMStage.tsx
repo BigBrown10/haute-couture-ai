@@ -166,35 +166,64 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 // --- Voice and Body Sync Animation ---
                 const currentVol = volumeRef.current;
 
-                // 1. Procedural Idle Breath and Sway (Body Sync)
+                // 1. Procedural Lifelike Breathing and Posture (Organic Body Sync)
                 if (currentVrm.humanoid) {
                     const spine = currentVrm.humanoid.getNormalizedBoneNode('spine');
                     if (spine) {
-                        spine.rotation.x = Math.sin(t * 1.5) * 0.04;     // breathing
-                        spine.rotation.y = Math.sin(t * 0.5) * 0.03;     // gentle sway
+                        spine.rotation.x = Math.sin(t * 1.5) * 0.02; // breathing expansion
+                        spine.rotation.y = Math.sin(t * 0.5) * 0.01; // subtle body weight shift
                     }
 
-                    // 2. Dynamic Arm Gestures & Relaxed A-Pose
-                    // We blend the default A-pose with dynamic talking gestures based on volume!
+                    const chest = currentVrm.humanoid.getNormalizedBoneNode('chest');
+                    if (chest) {
+                        // Chest subtly inflates when breathing, and more when speaking loudly
+                        chest.rotation.x = (Math.sin(t * 1.5) * 0.01) + (currentVol * 0.05);
+                        chest.rotation.z = Math.cos(t * 1.0) * 0.01;
+                    }
+
+                    // 2. Lifelike Arm Posings (Bent elbows, natural resting, asymmetrical gestures)
                     const leftArm = currentVrm.humanoid.getNormalizedBoneNode('leftUpperArm');
                     if (leftArm) {
-                        // Drop arm by 1.2 radians, add breathing, add outward gesture when talking loudly
-                        leftArm.rotation.z = 1.2 + (currentVol * Math.sin(t * 3) * 0.4);
-                        leftArm.rotation.x = 0.1 + (currentVol * Math.cos(t * 2) * 0.3);
+                        leftArm.rotation.z = 1.15; // Drop arm natively
+                        leftArm.rotation.x = 0.15; // Point slightly forward
+                        leftArm.rotation.y = -0.1; // Twist slightly inward
                     }
+                    const leftElbow = currentVrm.humanoid.getNormalizedBoneNode('leftLowerArm');
+                    if (leftElbow) {
+                        // Bend elbow naturally. When talking loudly, gesture wrist upwards/forward organically
+                        leftElbow.rotation.z = 0.1;
+                        leftElbow.rotation.x = -0.15 - (currentVol * (Math.sin(t * 3.2) + 1) * 0.25);
+                    }
+                    const leftHand = currentVrm.humanoid.getNormalizedBoneNode('leftHand');
+                    if (leftHand) leftHand.rotation.x = -0.15; // Relaxed wrist droop downward
+
                     const rightArm = currentVrm.humanoid.getNormalizedBoneNode('rightUpperArm');
                     if (rightArm) {
-                        // Drop arm by -1.2 radians, add outward gesture when talking loudly
-                        rightArm.rotation.z = -1.2 - (currentVol * Math.sin(t * 3) * 0.4);
-                        rightArm.rotation.x = 0.1 + (currentVol * Math.cos(t * 2) * 0.3);
+                        rightArm.rotation.z = -1.15; // Drop arm
+                        rightArm.rotation.x = 0.15;  // Point slightly forward
+                        rightArm.rotation.y = 0.1;   // Twist slightly inward
                     }
+                    const rightElbow = currentVrm.humanoid.getNormalizedBoneNode('rightLowerArm');
+                    if (rightElbow) {
+                        // Asymmetrical gesture mapping so hands don't move identically like a robot
+                        rightElbow.rotation.z = -0.1;
+                        rightElbow.rotation.x = -0.2 - (currentVol * (Math.cos(t * 2.7) + 1) * 0.25);
+                    }
+                    const rightHand = currentVrm.humanoid.getNormalizedBoneNode('rightHand');
+                    if (rightHand) rightHand.rotation.x = -0.15;
 
-                    // 3. Voice-Driven Body Sync (Head/Neck Bobbing)
+                    // 3. Voice-Driven Body Sync (Head/Neck Micro-movements)
                     const neck = currentVrm.humanoid.getNormalizedBoneNode('neck');
                     if (neck) {
-                        // Bob head emphatically on syllables!
-                        neck.rotation.x = (Math.sin(t * 0.8) * 0.05) + (currentVol * 0.4 * Math.sin(t * 5));
-                        neck.rotation.y = Math.sin(t * 0.3) * 0.05 + (currentVol * 0.2 * Math.cos(t * 4));
+                        // Neck sways counter to the spine to keep head level, plus organic talking bobs
+                        neck.rotation.x = -Math.sin(t * 1.5) * 0.01 + (currentVol * 0.15 * Math.sin(t * 6));
+                        neck.rotation.y = -Math.sin(t * 0.5) * 0.01 + (currentVol * 0.08 * Math.cos(t * 4.5));
+                    }
+
+                    const head = currentVrm.humanoid.getNormalizedBoneNode('head');
+                    if (head) {
+                        // Head does tiny organic tilts
+                        head.rotation.z = Math.sin(t * 0.3) * 0.02;
                     }
                 }
 
