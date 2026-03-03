@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-export type PersonaId = 'despina' | 'gina' | 'tony';
+export type PersonaId = 'despina' | 'gina' | 'tony' | 'aria';
 
 export interface Persona {
     id: PersonaId;
@@ -41,6 +41,15 @@ export const PERSONAS: Persona[] = [
         image: '/avatars/gina.png',
         voice: 'Aoede',
         mode: 'stylist'
+    },
+    {
+        id: 'aria',
+        name: 'Aria',
+        specialty: 'Haute Couture Illustrator',
+        description: 'Sophisticated, precise, and visionary. Aria translates your wildest design concepts into pure, high-fidelity sketches and patterns. She is a peer for designers and a mentor for tailors.',
+        image: '/avatars/aria.png',
+        voice: 'Charon',
+        mode: 'designer'
     }
 ];
 

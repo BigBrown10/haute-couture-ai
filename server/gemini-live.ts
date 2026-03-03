@@ -7,7 +7,7 @@
  */
 
 import { GoogleGenAI, type Session, type LiveServerMessage, type Content } from '@google/genai';
-import { PERSONA_SYSTEM_PROMPT, DESIGNER_SYSTEM_PROMPT, TONY_SYSTEM_PROMPT, GINA_SYSTEM_PROMPT, GENERATE_OUTFIT_TOOL, GENERATE_SKETCH_TOOL, SAFETY_SETTINGS } from './persona-prompt';
+import { PERSONA_SYSTEM_PROMPT, DESIGNER_SYSTEM_PROMPT, TONY_SYSTEM_PROMPT, GINA_SYSTEM_PROMPT, ARIA_SYSTEM_PROMPT, GENERATE_OUTFIT_TOOL, GENERATE_SKETCH_TOOL, SAFETY_SETTINGS } from './persona-prompt';
 import { generateOutfitImage, generateFashionSketch } from './vision-pipeline';
 
 const LIVE_MODEL = 'gemini-2.5-flash-native-audio-latest';
@@ -57,6 +57,8 @@ export class GeminiLiveSession {
                 systemPrompt = TONY_SYSTEM_PROMPT;
             } else if (this.voiceName === 'Aoede') {
                 systemPrompt = GINA_SYSTEM_PROMPT;
+            } else if (this.voiceName === 'Charon') {
+                systemPrompt = ARIA_SYSTEM_PROMPT;
             }
 
             this.session = await genAI.live.connect({

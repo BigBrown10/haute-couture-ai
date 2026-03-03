@@ -6,6 +6,7 @@
  */
 
 import { GoogleGenAI, type Part } from '@google/genai';
+import { MANNEQUIN_BASE_64 } from './assets/MannequinBase';
 
 const VISION_MODEL = 'gemini-3.1-flash-image-preview';
 
@@ -43,12 +44,20 @@ export async function generateOutfitImage(
         // Build parts array
         const parts: Part[] = [{ text: fullPrompt }];
 
-        // Include user foundation frame
+        // Include user foundation frame or FALLBACK to mannequin
         if (params.userFrameBase64) {
             parts.push({
                 inlineData: {
                     mimeType: 'image/jpeg',
                     data: params.userFrameBase64,
+                },
+            });
+        } else {
+            console.log('[VisionPipeline] 🤖 No user photo — Injecting MANNEQUIN_BASE_64');
+            parts.push({
+                inlineData: {
+                    mimeType: 'image/png',
+                    data: MANNEQUIN_BASE_64,
                 },
             });
         }
@@ -129,16 +138,19 @@ export async function generateFashionSketch(
     try {
         const genAI = new GoogleGenAI({ apiKey });
         const fullPrompt = [
-            `Create an exquisite, high-fashion sketch or runway concept mood board for a design titled: "${params.conceptName}".`,
-            'Style: Haute couture, avant-garde, highly artistic, editorial fashion illustration.',
-            'Aspect ratio: vertical portrait (9:16).',
+            `TASK: Create a professional, high-fidelity fashion illustration for a design titled: "${params.conceptName}".`,
+            'STYLE: PURE ARTISTIC SKETCH. Technical line art with subtle watercolor or marker shading.',
+            'BACKGROUND: Plain cream or off-white premium artist paper. NO LIFESTYLE ELEMENTS. NO STREETS. NO BUILDINGS. NO REAL PEOPLE.',
+            'SUBJECT: A professional fashion croquis (stylized, faceless human figure) wearing the design.',
+            'COMPOSITION: Single, centered, full-body portrait. High-end editorial illustration style.',
             '',
-            `Design Concept: ${params.prompt}`,
+            `DESIGN CONCEPT: ${params.prompt}`,
             '',
-            'Requirements:',
-            '- Focus on dramatic silhouettes and fabric texture.',
-            '- Use an artistic medium (e.g., watercolor, charcoal, dramatic 3D render, minimalist ink).',
-            '- Must look like it comes from a legendary Parisian atelier.',
+            'REQUIREMENTS:',
+            '- Focus on drape, seam placement, and fabric texture.',
+            '- Use a traditional medium (e.g., thin ink pen, charcoal, soft watercolor).',
+            '- Must look like it was drawn by a master at a legendary Parisian maison.',
+            '- THE FINAL IMAGE MUST BE JUST THE SKETCH ON PAPER. ZERO EXTRA PROPS OR BACKGROUNDS.',
         ].join('\n');
 
         console.log('[VisionPipeline] Generating sketch with', VISION_MODEL, '...');
@@ -172,21 +184,24 @@ export async function generateFashionSketch(
 
 function buildGenerationPrompt(params: GenerateOutfitParams): string {
     const isGarmentTryOn = !!params.garmentFrameBase64;
+    const isUsingMannequin = !params.userFrameBase64;
 
     const lines = [
         'VIRTUAL TRY-ON TASK: Redress the subject from the FIRST provided image.',
-        'FOUNDATION: The first image is the USER. Preserve their identity, face, pose, and background EXACTLY. No robotic alterations or feature changes.',
+        isUsingMannequin
+            ? 'FOUNDATION: The first image is a professional sculptural mannequin. Maintain its exact silhouette and posture.'
+            : 'FOUNDATION: The first image is the USER. Preserve their identity, face, pose, and background EXACTLY. No robotic alterations or feature changes.',
     ];
 
     if (isGarmentTryOn) {
         lines.push(
             'GARMENT: The second image is a specific item of clothing.',
-            'INSTRUCTION: Take the EXACT design and style from the second image and place it onto the user from the first image.',
+            'INSTRUCTION: Take the EXACT design and style from the second image and place it onto the subject from the first image.',
             'Ensure the drape and fit are natural and photorealistic. Maintain original lighting.'
         );
     } else {
         lines.push(
-            'INSTRUCTION: Redress the user in the new outfit described below.',
+            'INSTRUCTION: Redress the subject in the new outfit described below.',
             'Maintain perfect photorealism and blend naturally with the original lighting.'
         );
     }
@@ -196,7 +211,11 @@ function buildGenerationPrompt(params: GenerateOutfitParams): string {
         `Target Event: ${params.eventContext}`,
         `Outfit: ${params.prompt}`,
         '',
-        'Requirements:',
+        'STRICT COMPOSITION REQUIREMENTS:',
+        '- SINGLE FRAME PORTRAIT ONLY.',
+        '- NO SPLIT-SCREEN, NO SIDE-BY-SIDE, NO BEFORE/AFTER.',
+        '- NO VERTICAL OR HORIZONTAL DIVIDER LINES.',
+        '- NO COMPARISON SHOTS.',
         '- High-end, editorial fashion photography style.',
         '- Zero robotic artifacts.'
     );

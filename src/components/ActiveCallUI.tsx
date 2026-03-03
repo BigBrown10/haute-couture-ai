@@ -1,6 +1,7 @@
 'use client';
 
 import { Persona } from './LandingOverlay';
+import VRMStage from './VRMStage';
 
 interface ActiveCallUIProps {
     persona: {
@@ -50,18 +51,25 @@ export default function ActiveCallUI({
                     <div className="blob blob-3"></div>
                 </div>
 
-                <div className={`avatar-ring`}>
-                    {/* Base Puppet Layer (Torso/BG) */}
-                    <img src={persona.image} alt="" className="puppet-layer-base" />
+                <div className="avatar-ring">
+                    {/* NEW: 3D VRM Stage replacing 2D puppets */}
+                    <div className="vrm-stage-wrapper" style={{
+                        opacity: sessionReady ? 1 : 0,
+                        transition: 'opacity 1s ease-in-out',
+                        width: '100%',
+                        height: '100%'
+                    }}>
+                        <VRMStage
+                            personaName={persona.name}
+                            agentVolume={agentVolume}
+                            isThinking={isThinking}
+                        />
+                    </div>
 
-                    {/* Main Avatar Image (Head/Focus) */}
-                    <img src={persona.image} alt={persona.name} className="active-avatar-img" />
-
-                    {/* Lipsync Mouth Overlay */}
-                    <div className="mouth-overlay" style={{
-                        transform: `scaleY(${Math.max(0.1, agentVolume * 5)})`,
-                        opacity: agentVolume > 0.05 ? 1 : 0
-                    }}></div>
+                    {/* Fallback Puppet Layer (Torso/BG) while loading */}
+                    {!sessionReady && (
+                        <img src={persona.image} alt="" className="puppet-layer-base" style={{ opacity: 0.5 }} />
+                    )}
                 </div>
             </div>
 
