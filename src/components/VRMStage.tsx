@@ -257,7 +257,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 currentVrm.update(delta);
             } else if (activeBillboard) {
                 // Billboard Mock Update for 2D images
-                const scale = 1.0 + visemes.volume * 0.15;
+                const scale = 1.0 + volumeRef.current.volume * 0.15;
                 activeBillboard.scale.set(scale, scale, 1);
 
                 const t = Date.now() / 1000;
