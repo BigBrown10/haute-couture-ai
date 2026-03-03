@@ -3,11 +3,9 @@
 interface GlassControlBarProps {
     mode: 'stylist' | 'designer';
     micEnabled: boolean;
-    cameraEnabled: boolean;
     selectedVoice: string;
     onToggleMode: () => void;
     onToggleMic: () => void;
-    onToggleCamera: () => void;
     onChangeVoice: (voice: string) => void;
     onEndSession: () => void;
     canTryOn: boolean;
@@ -18,11 +16,9 @@ interface GlassControlBarProps {
 export default function GlassControlBar({
     mode,
     micEnabled,
-    cameraEnabled,
     selectedVoice,
     onToggleMode,
     onToggleMic,
-    onToggleCamera,
     onChangeVoice,
     onEndSession,
     canTryOn,
@@ -42,26 +38,6 @@ export default function GlassControlBar({
                 {mode === 'stylist' ? '👗 Stylist' : '🎨 Designer'}
             </button>
 
-            {/* Action Buttons */}
-            <button
-                className="glass-button secondary"
-                onClick={onUploadPhoto}
-                title="Upload Photo"
-                style={{ padding: '0 16px', borderRadius: '28px', fontSize: '0.9rem', marginLeft: '8px' }}
-            >
-                📸 Photo
-            </button>
-            <button
-                className="glass-button primary"
-                disabled={!canTryOn}
-                onClick={onTryOnItem}
-                title="Try On Item"
-                style={{ padding: '0 16px', borderRadius: '28px', fontSize: '0.9rem', marginLeft: '8px' }}
-            >
-                👗 Try On
-            </button>
-
-            {/* Voice selector */}
             <select
                 className="voice-select"
                 value={selectedVoice}
@@ -75,14 +51,25 @@ export default function GlassControlBar({
                 <option value="Fenrir">Fenrir — Gravelly</option>
             </select>
 
-            {/* Camera toggle */}
+            {/* Upload Button */}
             <button
-                className={`glass-button control-btn ${cameraEnabled ? '' : 'danger'}`}
-                onClick={onToggleCamera}
-                title={cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
-                aria-label={cameraEnabled ? 'Turn camera off' : 'Turn camera on'}
+                className="glass-button control-btn"
+                onClick={onUploadPhoto}
+                title="Upload Photo"
+                aria-label="Upload Photo"
             >
-                {cameraEnabled ? '🎥' : '📵'}
+                📤
+            </button>
+
+            {/* Try On Button */}
+            <button
+                className={`glass-button control-btn ${canTryOn ? '' : 'danger'} `}
+                onClick={onTryOnItem}
+                disabled={!canTryOn}
+                title="Try On Item"
+                aria-label="Try On Item"
+            >
+                👗
             </button>
 
             {/* Mic toggle — large center button */}

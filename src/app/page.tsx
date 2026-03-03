@@ -26,7 +26,6 @@ export default function HomePage() {
   const [outfits, setOutfits] = useState<GeneratedOutfit[]>([]);
   const [thinkingStatus, setThinkingStatus] = useState<string | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
-  const [cameraEnabled, setCameraEnabled] = useState(true);
   const [selectedVoice, setSelectedVoice] = useState('Despina');
   const [mode, setMode] = useState<'stylist' | 'designer'>('stylist');
   const [activePersona, setActivePersona] = useState<Persona | null>(null);
@@ -251,13 +250,25 @@ export default function HomePage() {
                   persona={activePersona}
                   isThinking={!!thinkingStatus}
                   sessionReady={sessionReady}
-                  userVolume={userVolume}
                   agentVolume={agentVolume}
                 />
               </div>
             )}
 
-            <div className="gallery-section">
+            <div className="gallery-section" style={{
+              position: 'absolute',
+              right: '2rem',
+              top: '6rem',
+              width: '320px',
+              height: 'calc(100vh - 180px)',
+              overflowY: 'auto',
+              zIndex: 20,
+              display: outfits.length > 0 ? 'block' : 'none',
+              background: outfits.length > 0 ? 'rgba(0,0,0,0.4)' : 'transparent',
+              borderRadius: '16px',
+              padding: '1rem',
+              backdropFilter: 'blur(10px)'
+            }}>
               <OutfitGallery outfits={outfits} />
             </div>
           </div>
@@ -265,13 +276,11 @@ export default function HomePage() {
           <GlassControlBar
             mode={mode}
             micEnabled={micEnabled}
-            cameraEnabled={cameraEnabled}
             selectedVoice={selectedVoice}
             onToggleMode={() => {
               // Toggle is now hidden or handled via end session in the Voice-Only UI
             }}
             onToggleMic={handleToggleMic}
-            onToggleCamera={() => setCameraEnabled((p) => !p)}
             onChangeVoice={setSelectedVoice}
             onEndSession={handleEndSession}
             canTryOn={!!userPhoto}
