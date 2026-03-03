@@ -897,13 +897,46 @@ body {
 .avatars-container {
   display: flex;
   gap: var(--space-xl);
-  justify-content: center;
-  flex-wrap: wrap;
-  margin-bottom: var(--space-2xl);
+  justify-content: flex-start;
+  /* Aligns to start for better scrolling experience */
+  flex-wrap: nowrap;
+  /* FORCED SINGLE ROW */
+  overflow-x: auto;
+  width: 100%;
+  padding: 1rem 1rem 2rem 1rem;
+  /* Space for scrollbar */
+  margin-bottom: var(--space-xl);
+  scrollbar-width: none;
+  /* Hide standard scrollbar for custom look */
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  /* Premium mobile snapping */
+  -webkit-overflow-scrolling: touch;
+}
+
+.avatars-container::-webkit-scrollbar {
+  display: none;
+  /* Keep it clean, use the cards as visual cues */
+}
+
+/* Ensure container is centered but scrollable if overflowing */
+.landing-content-wide {
+  max-width: 1200px;
+  width: 100%;
+  padding: var(--space-2xl);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+  /* Prevent horizontal body scroll */
 }
 
 .avatar-card {
   width: 260px;
+  flex-shrink: 0;
+  /* Prevent cards from shrinking */
+  scroll-snap-align: center;
+  /* Center snap on mobile */
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -914,6 +947,22 @@ body {
   transition: all var(--duration-normal) var(--ease-out-expo);
   opacity: 0.6;
   filter: grayscale(0.8);
+}
+
+@media (max-width: 768px) {
+  .avatar-card {
+    width: 200px;
+    /* Smaller cards for mobile */
+  }
+
+  .avatars-container {
+    gap: var(--space-md);
+    padding: 1rem;
+  }
+
+  .landing-title {
+    font-size: 1.8rem;
+  }
 }
 
 .avatar-card:hover {
@@ -1317,6 +1366,7 @@ body {
   color: var(--text-primary);
   margin-bottom: var(--space-lg);
   display: -webkit-box;
+  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
