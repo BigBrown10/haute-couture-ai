@@ -1158,72 +1158,188 @@ body {
   font-weight: 500;
 }
 
-/* ── Hero Outfit Gallery (Overlays the active call) ─────── */
-.outfit-gallery.has-content {
+/* ── Premium Lookbook Tray (Integrated Side Drawer) ── */
+.lookbook-tray {
   position: fixed;
-  inset: 0;
-  z-index: 50;
-  background: rgba(10, 10, 15, 0.85);
-  backdrop-filter: blur(30px);
-  -webkit-backdrop-filter: blur(30px);
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 400px;
+  background: rgba(10, 10, 15, 0.7);
+  backdrop-filter: blur(40px) saturate(180%);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  z-index: 100;
+  transform: translateX(-100%);
+  transition: transform 0.6s cubic-bezier(0.19, 1, 0.22, 1);
   display: flex;
+  flex-direction: column;
+  box-shadow: 20px 0 100px rgba(0, 0, 0, 0.5);
+}
+
+.lookbook-tray.is-visible {
+  transform: translateX(0);
+}
+
+.lookbook-header {
+  padding: var(--space-2xl);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  justify-content: space-between;
   align-items: center;
-  padding: 0 5vw;
-  gap: var(--space-2xl);
-  overflow-x: auto;
-  overflow-y: hidden;
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-gold-dim) transparent;
 }
 
-.outfit-hero-card {
-  position: relative;
-  width: 45vw;
-  max-width: 600px;
-  min-width: 320px;
-  height: 85vh;
-  border-radius: 32px;
+.lookbook-header h3 {
+  font-family: var(--font-serif);
+  font-size: 1.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--color-gold);
+}
+
+.lookbook-header .count {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 100px;
+}
+
+.lookbook-grid {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-xl);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xl);
+  scrollbar-width: none;
+}
+
+.lookbook-grid::-webkit-scrollbar {
+  display: none;
+}
+
+.lookbook-card {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 20px;
   overflow: hidden;
-  flex-shrink: 0;
-  cursor: pointer;
-  transition: transform 0.4s var(--ease-out-expo);
-  box-shadow: 0 20px 80px rgba(0, 0, 0, 0.6);
-  border: 1px solid var(--color-gold-dim);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s ease;
 }
 
-.outfit-hero-card:hover {
-  transform: scale(1.02) translateY(-10px);
-  border-color: var(--color-gold);
+.lookbook-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: var(--color-gold-dim);
+  transform: translateY(-5px);
 }
 
-.outfit-hero-image {
+.card-media {
+  aspect-ratio: 3/4;
+  overflow: hidden;
+  cursor: zoom-in;
+}
+
+.lookbook-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  display: block;
+  transition: transform 0.6s ease;
 }
 
-.outfit-hero-caption {
-  position: absolute;
-  bottom: 24px;
-  left: 24px;
-  right: 24px;
+.lookbook-card:hover .lookbook-img {
+  transform: scale(1.05);
+}
+
+.lookbook-placeholder {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+  color: var(--text-secondary);
+  background: linear-gradient(45deg, #1a1a20, #2a2a35);
+}
+
+.card-info {
   padding: var(--space-lg);
-  border-radius: 20px;
-  background: rgba(0, 0, 0, 0.7);
 }
 
-.outfit-hero-caption strong {
-  display: block;
-  font-size: 1.3rem;
-  margin-bottom: 4px;
-  line-height: 1.4;
-  color: white;
+.card-info .caption {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: var(--text-primary);
+  margin-bottom: var(--space-lg);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.outfit-hero-caption p {
-  font-size: 0.9rem;
-  color: var(--color-gold-bright);
+.card-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.action-btn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.download-btn {
+  background: var(--color-gold);
+  color: #000;
+}
+
+.download-btn:hover {
+  background: #fff;
+  transform: scale(1.05);
+}
+
+.view-btn {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.view-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* Fullscreen Overlay Styling */
+.outfit-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(0, 0, 0, 0.95);
+  backdrop-filter: blur(20px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 5vh;
+  cursor: zoom-out;
+}
+
+.outfit-fullscreen img {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 40px 100px rgba(0, 0, 0, 1);
+}
+
+.close-fullscreen {
+  position: absolute;
+  top: 40px;
+  right: 40px;
+  font-size: 2rem;
+  color: #fff;
 }
 
 /* ── Keyframes ──────────────────────────────────────────── */
