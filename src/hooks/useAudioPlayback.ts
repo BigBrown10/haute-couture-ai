@@ -2,14 +2,20 @@
 
 import { useRef, useCallback, useState } from 'react';
 
+export interface VisemeData {
+    volume: number;
+    a: number;
+    i: number;
+    u: number;
+    e: number;
+    o: number;
+}
+
 /**
  * Hook to play incoming PCM audio from the Gemini Live API.
- *
- * Receives Base64-encoded PCM 24kHz 16-bit mono chunks,
- * decodes them, and plays through Web Audio API.
- * Supports barge-in: stops playback when user interrupts.
+ * Uses an AnalyserNode to construct a VisemeData object for true lip-sync.
  */
-export function useAudioPlayback(onVolumeChange?: (volume: number) => void) {
+export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void) {
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const queueRef = useRef<AudioBufferSourceNode[]>([]);
@@ -70,22 +76,48 @@ export function useAudioPlayback(onVolumeChange?: (volume: number) => void) {
                 queueRef.current = queueRef.current.filter((s) => s !== source);
                 if (queueRef.current.length === 0) {
                     setIsPlaying(false);
-                    if (onVolumeChange) onVolumeChange(0);
+                    if (onVolumeChange) onVolumeChange({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
                 }
             };
 
-            // Volume analysis loop
+            // Volume & Viseme analysis loop using FFT
             if (onVolumeChange && !animationFrameRef.current) {
                 const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
                 const updateVolume = () => {
                     if (queueRef.current.length > 0) {
                         analyser.getByteFrequencyData(dataArray);
-                        let sum = 0;
-                        for (let i = 0; i < dataArray.length; i++) sum += dataArray[i];
-                        onVolumeChange((sum / dataArray.length) / 128);
+
+                        let totalVol = 0;
+                        let bandU = 0; // low: 0-500 Hz
+                        let bandA = 0; // mid: 500-1500 Hz
+                        let bandI = 0; // high: 1500-3000 Hz
+
+                        for (let i = 0; i < dataArray.length; i++) {
+                            const val = dataArray[i];
+                            totalVol += val;
+                            if (i > 1 && i <= 5) bandU += val;
+                            else if (i > 5 && i <= 16) bandA += val;
+                            else if (i > 16 && i <= 32) bandI += val;
+                        }
+
+                        // Normalize metrics
+                        const volume = (totalVol / dataArray.length) / 128;
+                        const u = (bandU / 4) / 255;
+                        const a = (bandA / 11) / 255;
+                        const i = (bandI / 16) / 255;
+
+                        onVolumeChange({
+                            volume,
+                            a: Math.min(1.0, a * 1.5), // Boost specific bandwidths to clarify mouth shapes
+                            i: Math.min(1.0, i * 2.0),
+                            u: Math.min(1.0, u * 1.2),
+                            e: Math.min(1.0, i * 1.5), // e is similar to i
+                            o: Math.min(1.0, u * 1.5), // o is similar to u
+                        });
                         animationFrameRef.current = requestAnimationFrame(updateVolume);
                     } else {
-                        onVolumeChange(0);
+                        onVolumeChange({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
                         animationFrameRef.current = null;
                     }
                 };
@@ -107,7 +139,7 @@ export function useAudioPlayback(onVolumeChange?: (volume: number) => void) {
         queueRef.current = [];
         nextStartTimeRef.current = 0;
         setIsPlaying(false);
-        if (onVolumeChange) onVolumeChange(0);
+        if (onVolumeChange) onVolumeChange({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
     }, [onVolumeChange]);
 
     const cleanup = useCallback(() => {

@@ -8,7 +8,7 @@ import ActiveCallUI from '../components/ActiveCallUI';
 import LandingOverlay, { Persona } from '@/components/LandingOverlay';
 import { useSocketConnection } from '@/hooks/useSocketConnection';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
-import { useAudioPlayback } from '@/hooks/useAudioPlayback';
+import { useAudioPlayback, VisemeData } from '@/hooks/useAudioPlayback';
 
 // TranscriptMessage removed for voice-only mode
 
@@ -32,7 +32,7 @@ export default function HomePage() {
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [garmentPhoto, setGarmentPhoto] = useState<string | null>(null);
   const [userVolume, setUserVolume] = useState(0);
-  const [agentVolume, setAgentVolume] = useState(0);
+  const [agentVolume, setAgentVolume] = useState<VisemeData>({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
 
   const messageIdRef = useRef(0);
   const sessionActiveRef = useRef(false);
@@ -257,9 +257,7 @@ export default function HomePage() {
 
           <GlassControlBar
             micEnabled={micEnabled}
-            selectedVoice={selectedVoice}
             onToggleMic={handleToggleMic}
-            onChangeVoice={setSelectedVoice}
             onEndSession={handleEndSession}
             canTryOn={!!userPhoto}
             onUploadPhoto={handleUserPhoto}

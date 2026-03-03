@@ -2,6 +2,7 @@
 
 import { Persona } from './LandingOverlay';
 import VRMStage from './VRMStage';
+import { VisemeData } from '@/hooks/useAudioPlayback';
 
 interface ActiveCallUIProps {
     persona: {
@@ -11,14 +12,14 @@ interface ActiveCallUIProps {
     isThinking: boolean;
     sessionReady: boolean;
     userVolume?: number;
-    agentVolume?: number;
+    agentVolume?: VisemeData;
 }
 
 export default function ActiveCallUI({
     persona,
     isThinking,
     sessionReady,
-    agentVolume = 0
+    agentVolume = { volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 }
 }: ActiveCallUIProps) {
     return (
         <div className="active-call-ui">

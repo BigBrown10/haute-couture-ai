@@ -2,9 +2,7 @@
 
 interface GlassControlBarProps {
     micEnabled: boolean;
-    selectedVoice: string;
     onToggleMic: () => void;
-    onChangeVoice: (voice: string) => void;
     onEndSession: () => void;
     canTryOn: boolean;
     onUploadPhoto: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -13,9 +11,7 @@ interface GlassControlBarProps {
 
 export default function GlassControlBar({
     micEnabled,
-    selectedVoice,
     onToggleMic,
-    onChangeVoice,
     onEndSession,
     canTryOn,
     onUploadPhoto,
@@ -23,53 +19,43 @@ export default function GlassControlBar({
 }: GlassControlBarProps) {
     return (
         <div className="control-bar">
-            {/* Voice selector */}
-            <select
-                className="voice-select"
-                value={selectedVoice}
-                onChange={(e) => onChangeVoice(e.target.value)}
-                aria-label="Select voice profile"
-            >
-                <option value="Kore">Smooth</option>
-                <option value="Puck">Sneakerhead</option>
-                <option value="Aoede">Bright</option>
-                <option value="Charon">Mature</option>
-                <option value="Fenrir">Gravelly</option>
-            </select>
-
             {/* Upload Button */}
             <label
-                className="glass-button control-btn upload-label"
+                className="glass-button secondary"
                 title="Upload Photo"
                 aria-label="Upload Photo"
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: 0 }}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', margin: '0 8px', padding: '0 20px', borderRadius: '28px', fontSize: '0.9rem', whiteSpace: 'nowrap' }}
             >
-                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onUploadPhoto} />
-                📤
+                <input type="file" accept="image/*" style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }} onChange={onUploadPhoto} />
+                📸 Upload
             </label>
 
             {/* Try On Button */}
             <label
-                className={`glass-button control-btn tryon-label ${canTryOn ? '' : 'disabled'}`}
-                title="Try On Item"
+                className={`glass-button primary ${canTryOn ? '' : 'disabled'}`}
+                title={canTryOn ? "Try On Item" : "Upload a photo first to try on items"}
                 aria-label="Try On Item"
                 style={{
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: canTryOn ? 'pointer' : 'not-allowed',
-                    margin: 0,
-                    opacity: canTryOn ? 1 : 0.5
+                    margin: '0 8px',
+                    padding: '0 20px',
+                    borderRadius: '28px',
+                    fontSize: '0.9rem',
+                    opacity: canTryOn ? 1 : 0.4,
+                    whiteSpace: 'nowrap'
                 }}
             >
                 <input
                     type="file"
                     accept="image/*"
-                    style={{ display: 'none' }}
+                    style={{ position: 'absolute', width: 1, height: 1, opacity: 0 }}
                     onChange={canTryOn ? onTryOnItem : undefined}
                     disabled={!canTryOn}
                 />
-                👗
+                👗 Try On
             </label>
 
             {/* Mic toggle — large center button */}
