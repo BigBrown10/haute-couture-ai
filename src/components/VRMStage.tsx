@@ -45,29 +45,66 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
         dirLight.position.set(1.0, 1.0, 1.0).normalize();
         scene.add(dirLight);
 
-        // --- VRM Loading ---
-        const loader = new GLTFLoader();
-        loader.register((parser) => new VRMLoaderPlugin(parser));
+        // --- Asset Loading (VRM with 3D Image Fallback) ---
+        const loadAsset = async () => {
+            const loader = new GLTFLoader();
+            loader.register((parser) => new VRMLoaderPlugin(parser));
 
-        // Use a default free VRM for now (or a placeholder path)
-        // IN PRODUCTION: We would load Persona-specific models
-        const modelUrl = '/models/default_avatar.vrm';
+            // Try to load the VRM first
+            const modelUrl = '/models/default_avatar.vrm';
 
-        loader.load(
-            modelUrl,
-            (gltf) => {
-                const vrm = gltf.userData.vrm as VRM;
-                vrmRef.current = vrm;
-                scene.add(vrm.scene);
-                vrm.scene.rotation.y = Math.PI; // Face the camera
+            try {
+                // Check if file exists roughly (or just let loader catch it)
+                loader.load(
+                    modelUrl,
+                    (gltf) => {
+                        const vrm = gltf.userData.vrm as VRM;
+                        vrmRef.current = vrm;
+                        scene.add(vrm.scene);
+                        vrm.scene.rotation.y = Math.PI;
+                        VRMUtils.removeUnnecessaryVertices(gltf.scene);
+                    },
+                    undefined,
+                    async (error) => {
+                        console.warn('VRM not found, falling back to 3D Image Billboard:', error);
+                        // FALLBACK: Load a high-fidelity 3D-looking 2D Plane
+                        const texLoader = new THREE.TextureLoader();
+                        // Use the new 3D-style avatar we just generated
+                        const texture = await texLoader.loadAsync(`/avatars/${personaName.toLowerCase()}_3d.png`).catch(() =>
+                            texLoader.loadAsync('/avatars/despina_3d.png')
+                        );
 
-                // Finalize scene
-                VRMUtils.removeUnnecessaryVertices(gltf.scene);
-                // In v3, lookAt is typically handled via the animator or plugin settings
-            },
-            (progress) => console.log('Loading VRM...', (progress.loaded / progress.total * 100).toFixed(2), '%'),
-            (error) => console.error('VRM Load Error:', error)
-        );
+                        const geometry = new THREE.PlaneGeometry(1, 1);
+                        const material = new THREE.MeshBasicMaterial({
+                            map: texture,
+                            transparent: true,
+                            side: THREE.DoubleSide
+                        });
+                        const billboard = new THREE.Mesh(geometry, material);
+                        billboard.position.set(0, 1.4, 0); // Align with head height
+                        scene.add(billboard);
+
+                        // Store a mock "vrm" or just use the billboard for animation
+                        (vrmRef.current as any) = {
+                            scene: billboard,
+                            update: () => {
+                                // Simple reactive scaling for the billboard
+                                const scale = 1.0 + agentVolume * 0.2;
+                                billboard.scale.set(scale, scale, 1);
+
+                                // Subtle floating motion
+                                const t = Date.now() / 1000;
+                                billboard.position.y = 1.4 + Math.sin(t * 2) * 0.02;
+                            }
+                        };
+                    }
+                );
+            } catch (e) {
+                console.error('Final Load Error:', e);
+            }
+        };
+
+        loadAsset();
 
         // --- Animation Loop ---
         const animate = () => {
@@ -77,26 +114,29 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
             if (vrmRef.current) {
                 const vrm = vrmRef.current;
 
-                // 1. Natural Idle Sway
-                const t = Date.now() / 1000;
-                vrm.humanoid?.getRawBoneNode('neck')?.rotation.set(
-                    Math.sin(t * 0.5) * 0.05,
-                    Math.cos(t * 0.8) * 0.05,
-                    0
-                );
-
-                // 2. Real-time LIP SYNC (wawa-style logic)
-                // Map volume to 'Aa' viseme
-                const mouthOpen = Math.min(1.0, agentVolume * 10.0);
-                vrm.expressionManager?.setValue('aa', mouthOpen);
-
-                // 3. Thinking Blink
-                if (isThinking) {
-                    const blink = Math.sin(t * 10) > 0.8 ? 1 : 0;
-                    vrm.expressionManager?.setValue('blink', blink);
+                // 1. Natural Idle Sway / Update logic
+                if (vrm.update && typeof vrm.update === 'function') {
+                    // Handle both VRM and Billboard updates
+                    if ((vrm as any).humanoid) {
+                        // VRM Logic
+                        const t = Date.now() / 1000;
+                        vrm.humanoid?.getRawBoneNode('neck')?.rotation.set(
+                            Math.sin(t * 0.5) * 0.05,
+                            Math.cos(t * 0.8) * 0.05,
+                            0
+                        );
+                        const mouthOpen = Math.min(1.0, agentVolume * 10.0);
+                        vrm.expressionManager?.setValue('aa', mouthOpen);
+                        if (isThinking) {
+                            const blink = Math.sin(t * 10) > 0.8 ? 1 : 0;
+                            vrm.expressionManager?.setValue('blink', blink);
+                        }
+                        vrm.update(delta);
+                    } else {
+                        // Billboard Mock Update
+                        (vrm as any).update();
+                    }
                 }
-
-                vrm.update(delta);
             }
 
             renderer.render(scene, camera);
@@ -105,9 +145,8 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
 
         return () => {
             renderer.dispose();
-            // Cleanup scene nodes if needed
         };
-    }, []);
+    }, [personaName, agentVolume, isThinking]);
 
     // Resize handler
     useEffect(() => {
