@@ -13,6 +13,7 @@ interface UseSocketConnectionProps {
     onError: (message: string) => void;
     onInterrupted: () => void;
     onAudioOut: (audioBase64: string) => void;
+    onAgentGesture: (animation: string) => void;
 }
 
 export function useSocketConnection(props: UseSocketConnectionProps) {
@@ -68,6 +69,10 @@ export function useSocketConnection(props: UseSocketConnectionProps) {
 
         socket.on('interrupted', () => {
             callbacksRef.current.onInterrupted();
+        });
+
+        socket.on('agent-gesture', (data: { animation: string }) => {
+            callbacksRef.current.onAgentGesture(data.animation);
         });
 
         socket.on('error-msg', (data: { message: string }) => {

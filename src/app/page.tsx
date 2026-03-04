@@ -35,6 +35,7 @@ export default function HomePage() {
   const [garmentPhoto, setGarmentPhoto] = useState<string | null>(null);
   const [userVolume, setUserVolume] = useState(0);
   const [agentVolume, setAgentVolume] = useState<VisemeData>({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
+  const [agentGesture, setAgentGesture] = useState<string | null>(null);
 
   const messageIdRef = useRef(0);
   const sessionActiveRef = useRef(false);
@@ -75,6 +76,13 @@ export default function HomePage() {
       // Play incoming audio from the Live API
       playChunk(audioBase64);
     },
+    onAgentGesture: (animation) => {
+      // Pass gesture down to the 3D VRMStage
+      console.log(`[Page] Received gesture command: ${animation}`);
+      setAgentGesture(animation);
+      // Automatically reset gesture flag after a tiny delay so the stage catches the rising edge
+      setTimeout(() => setAgentGesture(null), 100);
+    }
   });
 
   // ── Audio Capture ──────────────────────────────────────
@@ -259,6 +267,7 @@ export default function HomePage() {
                   isThinking={!!thinkingStatus}
                   sessionReady={sessionReady}
                   agentVolume={agentVolume}
+                  agentGesture={agentGesture}
                 />
               </div>
             )}

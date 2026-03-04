@@ -100,6 +100,9 @@ io.on('connection', (socket) => {
         onInterrupted: () => {
             socket.emit('interrupted');
         },
+        onAgentGesture: (animation: string) => {
+            socket.emit('agent-gesture', { animation, timestamp: Date.now() });
+        },
     };
 
     // ── Start Session ────────────────────────────────────────

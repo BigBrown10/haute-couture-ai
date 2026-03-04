@@ -3,6 +3,7 @@
 import React, { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { VRM, VRMLoaderPlugin, VRMUtils } from '@pixiv/three-vrm';
 import { VisemeData } from '@/hooks/useAudioPlayback';
@@ -11,9 +12,10 @@ interface VRMStageProps {
     personaName: string;
     agentVolume: VisemeData;
     isThinking: boolean;
+    agentGesture?: string | null;
 }
 
-export default function VRMStage({ personaName, agentVolume, isThinking }: VRMStageProps) {
+export default function VRMStage({ personaName, agentVolume, isThinking, agentGesture }: VRMStageProps) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
     const sceneRef = useRef<THREE.Scene | null>(null);
@@ -41,6 +43,12 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
     const volumeRef = useRef(agentVolume);
     const thinkingRef = useRef(isThinking);
 
+    // Animation State Machine Refs
+    const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+    const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
+    const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+    const activeAnimNameRef = useRef<string>('idle');
+
     // Smooth Lip Sync State
     const smoothedVolumes = useRef({ a: 0, i: 0, u: 0 });
     const lerp = (start: number, end: number, amt: number) => {
@@ -54,6 +62,38 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
     useEffect(() => {
         thinkingRef.current = isThinking;
     }, [isThinking]);
+
+    useEffect(() => {
+        if (!agentGesture || !mixerRef.current || !actionsRef.current[agentGesture]) return;
+        console.log(`[VRMStage] Crossfading to gesture: ${agentGesture}`);
+
+        const action = actionsRef.current[agentGesture];
+        const current = activeActionRef.current;
+
+        if (current && current !== action) {
+            action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.2).play();
+            current.fadeOut(0.2);
+            activeActionRef.current = action;
+            activeAnimNameRef.current = agentGesture;
+
+            const onAnimFinish = (e: any) => {
+                if (e.action === action) {
+                    mixerRef.current?.removeEventListener('finished', onAnimFinish);
+                    const idle = actionsRef.current['idle'];
+                    if (idle) {
+                        idle.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.3).play();
+                        action.fadeOut(0.3);
+                        activeActionRef.current = idle;
+                        activeAnimNameRef.current = 'idle';
+                    }
+                }
+            };
+            mixerRef.current.addEventListener('finished', onAnimFinish);
+
+            action.setLoop(THREE.LoopOnce, 1);
+            action.clampWhenFinished = true;
+        }
+    }, [agentGesture]);
 
     useEffect(() => {
         if (!canvasRef.current || !containerRef.current) return;
@@ -208,17 +248,35 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                                 }
                             });
 
-                            // Pre-apply brute-force relaxations for rigid Avaturn / RPM rigs that ignore Z-drops
-                            if (rig.rightArm) {
-                                rig.rightArm.rotation.z = -1.1; // Drop down
-                                rig.rightArm.rotation.x = 0.5;  // Pull forward
-                                rig.rightArm.rotation.y = -0.2; // Twist to side
-                            }
-                            if (rig.leftArm) {
-                                rig.leftArm.rotation.z = 1.1;
-                                rig.leftArm.rotation.x = 0.5;
-                                rig.leftArm.rotation.y = 0.2;
-                            }
+                            // Initialize Animation Mixer for the FBX payload
+                            const mixer = new THREE.AnimationMixer(model);
+                            mixerRef.current = mixer;
+
+                            const fbxLoader = new FBXLoader();
+                            const anims = ['idle', 'talking_1', 'talking_2', 'victory'];
+                            anims.forEach(anim => {
+                                fbxLoader.load(`/animations/${anim}.fbx`, (fbx) => {
+                                    if (fbx.animations.length > 0) {
+                                        const clip = fbx.animations[0];
+                                        // CRITICAL: Strip Mixamo prefix so it cleanly maps to Avaturn standard bones
+                                        clip.tracks.forEach(track => {
+                                            track.name = track.name.replace('mixamorig:', '');
+                                        });
+                                        const action = mixer.clipAction(clip);
+                                        actionsRef.current[anim] = action;
+
+                                        if (anim === 'idle') {
+                                            action.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).play();
+                                            activeActionRef.current = action;
+                                            activeAnimNameRef.current = 'idle';
+                                        } else if (anim.startsWith('talking')) {
+                                            action.setLoop(THREE.LoopRepeat, Infinity);
+                                        }
+                                    }
+                                }, undefined, (e) => {
+                                    console.warn(`[FBXLoader] Missed animation track: ${anim}`, e);
+                                });
+                            });
 
                             // Let the console know this model is completely lacking facial structures
                             if (rig.mouthMorphIndices.length === 0 && !rig.jaw) {
@@ -434,11 +492,43 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 const t = Date.now() / 1000;
                 const currentVol = volumeRef.current.volume;
 
-                // Organic Breathing & Posture
-                if (rig.spine) rig.spine.bone.rotation.x = rig.spine.initX + Math.sin(t * 1.5) * 0.02;
-                if (rig.chest) rig.chest.bone.rotation.x = rig.chest.initX + (Math.sin(t * 1.5) * 0.01) + (currentVol * 0.05);
+                // --- Hardware Morph Rendering ---
+                if (mixerRef.current) {
+                    mixerRef.current.update(delta);
 
-                // Head tracking (Target Mouse)
+                    // Animation State Machine (Idle vs Talking Crossfader)
+                    // We DO NOT interrupt explicit gestures (e.g., victory, taunt) triggered by the AI
+                    if (activeAnimNameRef.current === 'idle' || activeAnimNameRef.current.startsWith('talking')) {
+                        const isSpeaking = currentVol > 0.05;
+
+                        if (isSpeaking && activeAnimNameRef.current === 'idle') {
+                            const targetAnim = Math.random() > 0.5 ? 'talking_1' : 'talking_2';
+                            const next = actionsRef.current[targetAnim];
+                            const curr = activeActionRef.current;
+                            if (next && curr && next !== curr) {
+                                next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.3).play();
+                                curr.fadeOut(0.3);
+                                activeActionRef.current = next;
+                                activeAnimNameRef.current = targetAnim;
+                            }
+                        } else if (!isSpeaking && activeAnimNameRef.current.startsWith('talking')) {
+                            const next = actionsRef.current['idle'];
+                            const curr = activeActionRef.current;
+                            if (next && curr && next !== curr) {
+                                next.reset().setEffectiveTimeScale(1).setEffectiveWeight(1).fadeIn(0.4).play();
+                                curr.fadeOut(0.4);
+                                activeActionRef.current = next;
+                                activeAnimNameRef.current = 'idle';
+                            }
+                        }
+                    }
+                } else {
+                    // Fallback to procedural rotation if mixer failed
+                    if (rig.spine) rig.spine.bone.rotation.x = rig.spine.initX + Math.sin(t * 1.5) * 0.02;
+                    if (rig.chest) rig.chest.bone.rotation.x = rig.chest.initX + (Math.sin(t * 1.5) * 0.01) + (currentVol * 0.05);
+                }
+
+                // Head tracking (Target Mouse) - Applied AFTER animation mixer to override the baked FBX neck rotation
                 if (rig.head) {
                     const targetX = mouseRef.current.x * 0.5;
                     const targetY = mouseRef.current.y * 0.5;

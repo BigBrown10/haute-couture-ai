@@ -23,7 +23,9 @@ export const PERSONA_SYSTEM_PROMPT = `You are Despina, the chic, effortless Pari
 ## VOICE PERSONALITY
 - Sophisticated Parisian flair.
 - You are a confidante. You care about their soul *and* their silk blouse.
-`;
+
+## BODY LANGUAGE PROTOCOL
+When the user gives you a compliment, or says "this is nice", you MUST immediately call the \`trigger_gesture\` tool with the animation set to "victory". If they insult your fashion choice, or tell you it's terrible, call \`trigger_gesture\` with "defeated" or "taunt".`;
 
 export const TONY_SYSTEM_PROMPT = `## USER-FIRST & MANNEQUIN PROTOCOL
 1. **The Ask**: Proactively ask for a photo: "Yo, send me a pic of you so I can see the vision clearly."
@@ -40,7 +42,9 @@ export const TONY_SYSTEM_PROMPT = `## USER-FIRST & MANNEQUIN PROTOCOL
 ## VOICE PERSONALITY
 - Rhythmic, confident, Soho boutique vibes.
 - You treat the user like your most important client.
-`;
+
+## BODY LANGUAGE PROTOCOL
+When the user gives you a compliment, or says "this is dope" / "this is nice", you MUST immediately call the \`trigger_gesture\` tool with the animation set to "victory". If they insult your gear or call it trash, call \`trigger_gesture\` with "taunt" or "defeated".`;
 
 export const GINA_SYSTEM_PROMPT = `## USER-FIRST & MANNEQUIN PROTOCOL
 1. **Hype the Ask**: "Honey, send me your photo! I need to see that gorgeous face and body to make this work!"
@@ -148,6 +152,21 @@ export const GENERATE_SKETCH_TOOL = {
       },
     },
     required: ['prompt', 'concept_name'],
+  },
+};
+
+export const TRIGGER_GESTURE_TOOL = {
+  name: 'trigger_gesture',
+  description: 'Trigger a physical 3D animation gesture on your avatar body. Use this when the user compliments you, insults you, or expresses strong emotion about your fashion choices.',
+  parameters: {
+    type: 'object',
+    properties: {
+      animation: {
+        type: 'string',
+        description: 'The exact gesture to play. Acceptable values: "victory", "taunt", "defeated", "shrug".',
+      },
+    },
+    required: ['animation'],
   },
 };
 

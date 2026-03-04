@@ -7,7 +7,17 @@
  */
 
 import { GoogleGenAI, type Session, type LiveServerMessage, type Content } from '@google/genai';
-import { PERSONA_SYSTEM_PROMPT, DESIGNER_SYSTEM_PROMPT, TONY_SYSTEM_PROMPT, GINA_SYSTEM_PROMPT, ARIA_SYSTEM_PROMPT, GENERATE_OUTFIT_TOOL, GENERATE_SKETCH_TOOL, SAFETY_SETTINGS } from './persona-prompt';
+import {
+    PERSONA_SYSTEM_PROMPT,
+    DESIGNER_SYSTEM_PROMPT,
+    TONY_SYSTEM_PROMPT,
+    GINA_SYSTEM_PROMPT,
+    ARIA_SYSTEM_PROMPT,
+    GENERATE_OUTFIT_TOOL,
+    GENERATE_SKETCH_TOOL,
+    TRIGGER_GESTURE_TOOL,
+    SAFETY_SETTINGS
+} from './persona-prompt';
 import { generateOutfitImage, generateFashionSketch } from './vision-pipeline';
 
 const LIVE_MODEL = 'gemini-2.5-flash-native-audio-latest';
@@ -17,8 +27,9 @@ export interface LiveSessionCallbacks {
     onTranscript: (text: string, role: 'agent' | 'user') => void;
     onGeneratedOutfit: (imageBase64: string | null, caption: string) => void;
     onThinking: (status: string) => void;
-    onError: (error: string) => void;
+    onError: (message: string) => void;
     onInterrupted: () => void;
+    onAgentGesture?: (animation: string) => void;
 }
 
 export type AgentMode = 'stylist' | 'designer';
@@ -71,7 +82,7 @@ export class GeminiLiveSession {
                     systemInstruction: {
                         parts: [{ text: systemPrompt }],
                     },
-                    tools: [{ functionDeclarations: [isDesigner ? GENERATE_SKETCH_TOOL : GENERATE_OUTFIT_TOOL] }],
+                    tools: [{ functionDeclarations: [isDesigner ? GENERATE_SKETCH_TOOL : GENERATE_OUTFIT_TOOL, TRIGGER_GESTURE_TOOL] }],
                     speechConfig: {
                         voiceConfig: {
                             prebuiltVoiceConfig: {
@@ -232,6 +243,8 @@ export class GeminiLiveSession {
                             await this.handleGenerateOutfit({ id: call.id, name: callName, args: call.args });
                         } else if (callName === 'generate_fashion_sketch') {
                             await this.handleGenerateSketch({ id: call.id, name: callName, args: call.args });
+                        } else if (callName === 'trigger_gesture') {
+                            await this.handleTriggerGesture({ id: call.id, name: callName, args: call.args });
                         }
                     }
                 }
@@ -314,6 +327,26 @@ export class GeminiLiveSession {
 
         // Send function response back
         await this.sendToolResponse(call.id || 'unknown', 'generate_fashion_sketch', result);
+    }
+
+    /**
+     * Handle the trigger_gesture function call from the Live API.
+     */
+    private async handleTriggerGesture(call: { id?: string; name: string; args?: Record<string, unknown> }): Promise<void> {
+        const args = (call.args || {}) as Record<string, string>;
+        const animation = args.animation || 'victory';
+
+        console.log(`[GeminiLive] 🎭 Triggering gesture: ${animation}`);
+
+        if (this.callbacks.onAgentGesture) {
+            this.callbacks.onAgentGesture(animation);
+        }
+
+        await this.sendToolResponse(call.id || 'unknown', 'trigger_gesture', {
+            caption: `Gesture '${animation}' triggered`,
+            imageBase64: null,
+            error: undefined
+        });
     }
 
     private async sendToolResponse(id: string, name: string, result: { error?: string; caption: string; imageBase64: string | null }) {

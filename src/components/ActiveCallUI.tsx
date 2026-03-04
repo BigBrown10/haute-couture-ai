@@ -13,13 +13,15 @@ interface ActiveCallUIProps {
     sessionReady: boolean;
     userVolume?: number;
     agentVolume?: VisemeData;
+    agentGesture?: string | null;
 }
 
 export default function ActiveCallUI({
     persona,
     isThinking,
     sessionReady,
-    agentVolume = { volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 }
+    agentVolume = { volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 },
+    agentGesture = null
 }: ActiveCallUIProps) {
     return (
         <div className="active-call-ui">
@@ -33,6 +35,7 @@ export default function ActiveCallUI({
                     personaName={persona.name}
                     agentVolume={agentVolume}
                     isThinking={isThinking}
+                    agentGesture={agentGesture}
                 />
             </div>
         </div>
