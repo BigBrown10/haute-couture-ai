@@ -65,6 +65,19 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
 
     return (
         <div className={`landing-overlay ${exiting ? 'exiting' : ''}`}>
+            {/* Top Navigation Bar */}
+            <div className="top-nav-bar">
+                <div className="nav-logo">
+                    <h1 className="landing-title-premium-small">PROJECT HAUTE COUTURE</h1>
+                </div>
+                <div className="nav-menu">
+                    <button className="nav-link">Home</button>
+                    <button className="nav-link">Our Stylists</button>
+                    <button className="nav-link">About</button>
+                    <button className="nav-link">Contact</button>
+                </div>
+            </div>
+
             {/* Spline 3D Interactive Background */}
             <div className="spline-bg-wrapper">
                 <iframe
@@ -78,13 +91,7 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
             </div>
 
             <div className="landing-content-wide spline-overlay-panel">
-                <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
-                    <h1 className="landing-title-premium">PROJECT HAUTE COUTURE</h1>
-                    <p className="landing-subtitle-premium">
-                        Meet your new AI fashion bestie.
-                    </p>
-                </div>
-
+                {/* The large title was removed from here. The Top Nav Bar now handles it! */}
                 <div className="avatars-container">
                     {PERSONAS.map(persona => (
                         <div
