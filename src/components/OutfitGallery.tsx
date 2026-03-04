@@ -32,9 +32,9 @@ export default function OutfitGallery({ outfits }: OutfitGalleryProps) {
 
     return (
         <div className="atelier-container">
-            <div className="atelier-header">
-                <h2>
-                    <span className="text-silver" style={{ fontSize: '1.8rem', fontWeight: 400 }}>My Looks</span>
+            <div className="atelier-header" style={{ paddingTop: '10px', paddingBottom: '15px' }}>
+                <h2 style={{ margin: 0 }}>
+                    <span className="text-silver" style={{ fontFamily: 'Supercharge, var(--font-serif)', fontSize: '1.8rem', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase' }}>My Looks</span>
                 </h2>
             </div>
 

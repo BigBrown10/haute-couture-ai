@@ -29,6 +29,7 @@ export class GeminiLiveSession {
     // Track state for virtual try-on payload construction
     private latestUserFrame: string | null = null;
     private latestGarmentFrame: string | null = null;
+    private turnGenerationCount: number = 0;
     private isConnected = false;
     private voiceName: string;
     private mode: AgentMode;
@@ -217,6 +218,7 @@ export class GeminiLiveSession {
                 // Turn completion
                 if (content.turnComplete) {
                     this.callbacks.onThinking('');
+                    this.turnGenerationCount = 0; // Reset tool limit per conversational turn
                 }
             }
 
@@ -249,6 +251,17 @@ export class GeminiLiveSession {
      * Handle the generate_outfit function call from the Live API.
      */
     private async handleGenerateOutfit(call: { id?: string; name: string; args?: Record<string, unknown> }): Promise<void> {
+        if (this.turnGenerationCount >= 2) {
+            console.warn('[GeminiLive] Hard-blocking extra outfit generation: limit reached (2).');
+            await this.sendToolResponse(call.id || 'unknown', 'generate_outfit', {
+                error: "SYSTEM OVERRIDE: 2-image maximum reached. You MUST stop generating and interact with the user.",
+                caption: "",
+                imageBase64: null
+            });
+            return;
+        }
+        this.turnGenerationCount++;
+
         const args = (call.args || {}) as Record<string, string>;
 
         this.callbacks.onThinking('✨ Generating Virtual Try-On overlay...');
@@ -275,6 +288,17 @@ export class GeminiLiveSession {
      * Handle the generate_fashion_sketch function call from the Live API.
      */
     private async handleGenerateSketch(call: { id?: string; name: string; args?: Record<string, unknown> }): Promise<void> {
+        if (this.turnGenerationCount >= 2) {
+            console.warn('[GeminiLive] Hard-blocking extra sketch generation: limit reached (2).');
+            await this.sendToolResponse(call.id || 'unknown', 'generate_fashion_sketch', {
+                error: "SYSTEM OVERRIDE: 2-sketch maximum reached. You MUST stop generating and interact with the user.",
+                caption: "",
+                imageBase64: null
+            });
+            return;
+        }
+        this.turnGenerationCount++;
+
         const args = (call.args || {}) as Record<string, string>;
 
         this.callbacks.onThinking('🎨 Sketching haute couture concept...');

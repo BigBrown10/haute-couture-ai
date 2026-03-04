@@ -200,8 +200,8 @@ body {
 .app-container {
   position: relative;
   width: 100vw;
-  min-height: 100dvh;
-  overflow-x: hidden;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 /* Layer 1: Full-bleed camera background */
@@ -2067,6 +2067,11 @@ body {
   left: 40px;
   z-index: 10;
   pointer-events: none;
+}
+
+.splash-screen .spline-iframe {
+  transform: scale(1.6);
+  transform-origin: center center;
 }
 
 .splash-action {
