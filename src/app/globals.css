@@ -840,9 +840,13 @@ body {
 .landing-overlay {
   position: fixed;
   inset: 0;
+  overflow-y: auto;
+  padding: 4rem 1rem;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
+  /* Allow scrolling if content is taller than viewport, 'center' breaks if not enough room so 'flex-start' is safer */
+  justify-content: flex-start;
   background: radial-gradient(circle at center, rgba(18, 18, 26, 0.4) 0%, rgba(10, 10, 15, 0.95) 100%);
   z-index: 100;
   transition: opacity 1s var(--ease-out-expo), transform 1s var(--ease-out-expo), filter 1s var(--ease-out-expo);
@@ -875,6 +879,9 @@ body {
 
 /* Make the main panel stand out luxuriously */
 .spline-overlay-panel {
+  position: relative;
+  z-index: 10;
+  /* Bring above Spline iframe to guarantee clicks register */
   background: rgba(10, 10, 15, 0.4);
   /* Extremely sheer glass */
   backdrop-filter: blur(30px);
@@ -884,6 +891,8 @@ body {
   border-radius: var(--radius-xl);
   padding: 3.5rem;
   pointer-events: auto;
+  max-width: 1000px;
+  width: 100%;
 }
 
 /* Premium Typography */
