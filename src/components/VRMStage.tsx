@@ -206,9 +206,22 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                                 }
                             });
 
-                            // Pre-apply fixed arm relaxations from T-Pose using Inverse Kinematics assumptions
-                            if (rig.rightArm) rig.rightArm.rotation.z -= 1.25; // drop right arm 70 deg
-                            if (rig.leftArm) rig.leftArm.rotation.z += 1.25; // drop left arm 70 deg
+                            // Pre-apply brute-force relaxations for rigid Avaturn / RPM rigs that ignore Z-drops
+                            if (rig.rightArm) {
+                                rig.rightArm.rotation.z = -1.1; // Drop down
+                                rig.rightArm.rotation.x = 0.5;  // Pull forward
+                                rig.rightArm.rotation.y = -0.2; // Twist to side
+                            }
+                            if (rig.leftArm) {
+                                rig.leftArm.rotation.z = 1.1;
+                                rig.leftArm.rotation.x = 0.5;
+                                rig.leftArm.rotation.y = 0.2;
+                            }
+
+                            // Let the console know this model is completely lacking facial structures
+                            if (rig.mouthMorphIndices.length === 0 && !rig.jaw) {
+                                console.warn('MODEL ALERT: This GLB physically lacks facial morph targets and jaw bones. Synthesizing speech via Head Bobbing.');
+                            }
 
                             console.log('Successfully loaded and auto-rigged raw GLB mesh.');
                         }
@@ -437,17 +450,22 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                     if (rig.jaw) rig.jaw.bone.rotation.x = rig.jaw.initX + (currentVol * 0.25);
 
                     // Hardware Blendshapes / Morph Targets
-                    if (rig.faceMesh && rig.faceMesh.morphTargetInfluences) {
+                    if (rig.faceMesh && rig.faceMesh.morphTargetInfluences && rig.mouthMorphIndices.length > 0) {
                         rig.mouthMorphIndices.forEach(idx => {
                             rig.faceMesh!.morphTargetInfluences![idx] = lerp(rig.faceMesh!.morphTargetInfluences![idx], currentVol * 1.5, 0.3);
                         });
+                    } else if (rig.head) {
+                        // PS1 Era Talk Simulation: No jaw/lips available, bob the head organically to syllables
+                        rig.head.bone.rotation.x += currentVol * 0.1;
+                        if (rig.spine) rig.spine.bone.rotation.x += currentVol * 0.02;
                     }
+
                 } else {
                     // Relax Jaw
                     if (rig.jaw) rig.jaw.bone.rotation.x = lerp(rig.jaw.bone.rotation.x, rig.jaw.initX, 0.2);
 
                     // Relax Morphs
-                    if (rig.faceMesh && rig.faceMesh.morphTargetInfluences) {
+                    if (rig.faceMesh && rig.faceMesh.morphTargetInfluences && rig.mouthMorphIndices.length > 0) {
                         rig.mouthMorphIndices.forEach(idx => {
                             rig.faceMesh!.morphTargetInfluences![idx] = lerp(rig.faceMesh!.morphTargetInfluences![idx], 0, 0.2);
                         });
