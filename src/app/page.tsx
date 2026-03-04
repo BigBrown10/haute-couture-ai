@@ -232,9 +232,11 @@ export default function HomePage() {
       {sessionActive && (
         <div className="ui-layer">
           <header className="top-bar">
-            <div className="brand">
-              <div className="brand-logo">👁</div>
-              <span className="brand-name">Haute Couture AI</span>
+            <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
+              <img src="/hc-logo.png" alt="HC Logo" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
+              <span className="brand-name" style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', fontWeight: 400, letterSpacing: '1px', textTransform: 'none' }}>
+                Haute couture
+              </span>
             </div>
           </header>
 
