@@ -7,6 +7,7 @@ interface GlassControlBarProps {
     canTryOn: boolean;
     onUploadPhoto: (e: React.ChangeEvent<HTMLInputElement>) => void;
     onTryOnItem: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    hideTryOn?: boolean;
 }
 
 export default function GlassControlBar({
@@ -16,6 +17,7 @@ export default function GlassControlBar({
     canTryOn,
     onUploadPhoto,
     onTryOnItem,
+    hideTryOn = false,
 }: GlassControlBarProps) {
     return (
         <div className="control-bar">
@@ -31,21 +33,23 @@ export default function GlassControlBar({
             </label>
 
             {/* Try On Button */}
-            <label
-                className={`glass-button control-btn action-btn tooltip-container ${canTryOn ? 'try-on-ready' : 'try-on-disabled'}`}
-                title={canTryOn ? "Try On Garment" : "Upload a photo first to try on items"}
-                aria-label="Try On Garment"
-            >
-                <input
-                    type="file"
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    onChange={canTryOn ? onTryOnItem : undefined}
-                    disabled={!canTryOn}
-                />
-                <span style={{ fontSize: '1.5rem' }}>👗</span>
-                <span className="tooltip">Try Fit</span>
-            </label>
+            {!hideTryOn && (
+                <label
+                    className={`glass-button control-btn action-btn tooltip-container ${canTryOn ? 'try-on-ready' : 'try-on-disabled'}`}
+                    title={canTryOn ? "Try On Garment" : "Upload a photo first to try on items"}
+                    aria-label="Try On Garment"
+                >
+                    <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        onChange={canTryOn ? onTryOnItem : undefined}
+                        disabled={!canTryOn}
+                    />
+                    <span style={{ fontSize: '1.5rem' }}>👗</span>
+                    <span className="tooltip">Try Fit</span>
+                </label>
+            )}
 
             {/* Mic toggle — large center button */}
             <button

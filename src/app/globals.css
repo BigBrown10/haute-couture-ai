@@ -1193,8 +1193,8 @@ body {
 
 .avatar-card {
   position: relative;
-  width: 280px;
-  height: 420px;
+  width: 240px;
+  height: 380px;
   flex-shrink: 0;
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);

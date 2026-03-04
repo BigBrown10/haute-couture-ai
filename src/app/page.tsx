@@ -161,12 +161,15 @@ export default function HomePage() {
           const base64Data = dataUrl.split(',')[1];
           setUserPhoto(base64Data);
           sendVideoFrame(base64Data);
-          sendText("Hey bestie! I just uploaded a photo of myself. What do you think of my current style? Can you recommend something better?");
+          const prompt = activePersona?.mode === 'designer'
+            ? "I just uploaded a reference sketch. Could you analyze it and help me iterate on this design?"
+            : "Hey bestie! I just uploaded a photo of myself. What do you think of my current style? Can you recommend something better?";
+          sendText(prompt);
         }
       };
       img.src = URL.createObjectURL(file);
     },
-    [sendVideoFrame, sendText]
+    [sendVideoFrame, sendText, activePersona]
   );
 
   const handleGarmentPhoto = useCallback(
@@ -280,6 +283,7 @@ export default function HomePage() {
             canTryOn={!!userPhoto}
             onUploadPhoto={handleUserPhoto}
             onTryOnItem={handleGarmentPhoto}
+            hideTryOn={activePersona?.id === 'aria'}
           />
         </div>
       )}
