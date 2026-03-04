@@ -2070,8 +2070,10 @@ body {
 }
 
 .splash-screen .spline-iframe {
-  transform: scale(1.6);
+  transform: scale(0.75);
   transform-origin: center center;
+  /* Aggressively slice the watermark off the iframe natively before the downscale transform lifts it into view */
+  clip-path: inset(0 0 80px 0);
 }
 
 .splash-action {
