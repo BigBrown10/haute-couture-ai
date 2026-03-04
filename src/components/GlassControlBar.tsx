@@ -23,7 +23,7 @@ export default function GlassControlBar({
         <div className="control-bar">
             {/* Upload Button */}
             <label
-                className="glass-button control-btn action-btn tooltip-container"
+                className="glass-button control-btn tooltip-container"
                 title="Upload Base Model"
                 aria-label="Upload Base Model"
             >
@@ -35,7 +35,7 @@ export default function GlassControlBar({
             {/* Try On Button */}
             {!hideTryOn && (
                 <label
-                    className={`glass-button control-btn action-btn tooltip-container ${canTryOn ? 'try-on-ready' : 'try-on-disabled'}`}
+                    className={`glass-button control-btn tooltip-container ${canTryOn ? 'try-on-ready' : 'try-on-disabled'}`}
                     title={canTryOn ? "Try On Garment" : "Upload a photo first to try on items"}
                     aria-label="Try On Garment"
                 >
