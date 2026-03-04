@@ -5,6 +5,14 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
 
+@font-face {
+  font-family: 'Supercharge';
+  src: url('/fonts/Supercharge.ttf') format('truetype');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ── CSS Custom Properties ──────────────────────────────── */
 :root {
   /* Glass colors */
@@ -894,7 +902,7 @@ body {
 }
 
 .landing-title-premium-small {
-  font-family: var(--font-serif);
+  font-family: 'Supercharge', var(--font-serif);
   font-size: 1.25rem;
   font-weight: 500;
   letter-spacing: 0.15em;
