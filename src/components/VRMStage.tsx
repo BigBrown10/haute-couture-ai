@@ -77,19 +77,21 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
         controls.update();
 
         // --- Lighting ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        // Dramatic low ambient light for high contrast shadows
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
         scene.add(ambientLight);
 
-        const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
-        dirLight.position.set(1.0, 1.0, 1.0).normalize();
+        // Subtle cool rim light for edge definition
+        const dirLight = new THREE.DirectionalLight(0x90b0d0, 0.4);
+        dirLight.position.set(2.0, 1.0, -2.0).normalize();
         scene.add(dirLight);
 
-        // Spotlight exact center for the podium
-        const spotLight = new THREE.SpotLight(0xffddaa, 2.5); // Warm gold tint
-        spotLight.position.set(0, 3, 2);
-        spotLight.angle = Math.PI / 6;
-        spotLight.penumbra = 0.5;
-        spotLight.target.position.set(0, 0, 0);
+        // Powerful Overhead/Frontal Spotlight directly on the Agent
+        const spotLight = new THREE.SpotLight(0xffffff, 10.0); // Intense white spotlight
+        spotLight.position.set(0, 3.5, 2.5);
+        spotLight.angle = Math.PI / 7; // Narrow dramatic beam
+        spotLight.penumbra = 0.4;      // Smooth falloff edge
+        spotLight.target.position.set(0, 1.1, 0); // Focus exactly on the agent's upper body/face
         scene.add(spotLight);
         scene.add(spotLight.target);
 

@@ -233,7 +233,6 @@ export default function HomePage() {
         <div className="ui-layer">
           <header className="top-bar">
             <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-              <img src="/hc-logo.png" alt="HC Logo" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
               <span className="brand-name" style={{ fontFamily: 'Supercharge, var(--font-serif)', fontSize: '1.4rem', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase' }}>
                 HAUTE COUTURE
               </span>
