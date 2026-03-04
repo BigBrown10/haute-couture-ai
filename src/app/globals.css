@@ -1174,154 +1174,128 @@ body {
 .landing-content-wide {
   max-width: 1200px;
   width: 100%;
-  padding: var(--space-2xl);
+  padding: 2rem;
   display: flex;
   flex-direction: column;
   align-items: center;
+  position: relative;
+  z-index: 10;
 }
 
 .avatars-container {
   display: flex;
   gap: var(--space-xl);
-  justify-content: flex-start;
-  /* Aligns to start for better scrolling experience */
-  flex-wrap: nowrap;
-  /* FORCED SINGLE ROW */
-  overflow-x: auto;
-  width: 100%;
-  padding: 1rem 1rem 2rem 1rem;
-  /* Space for scrollbar */
-  margin-bottom: var(--space-xl);
-  scrollbar-width: none;
-  /* Hide standard scrollbar for custom look */
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
-  /* Premium mobile snapping */
-  -webkit-overflow-scrolling: touch;
-}
-
-.avatars-container::-webkit-scrollbar {
-  display: none;
-  /* Keep it clean, use the cards as visual cues */
-}
-
-/* Ensure container is centered but scrollable if overflowing */
-.landing-content-wide {
-  max-width: 1200px;
-  width: 100%;
-  padding: var(--space-2xl);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  overflow: hidden;
-  /* Prevent horizontal body scroll */
-}
-
-/* ── Avatars Container Restore ── */
-.avatars-container {
-  display: flex;
-  gap: var(--space-2xl);
   justify-content: center;
-  margin-top: 2rem;
-  margin-bottom: var(--space-2xl);
   flex-wrap: wrap;
+  width: 100%;
+  padding: 1rem 1rem 4rem 1rem;
 }
 
 .avatar-card {
-  width: 260px;
+  position: relative;
+  width: 280px;
+  height: 420px;
   flex-shrink: 0;
-  /* Prevent cards from shrinking */
-  scroll-snap-align: center;
-  /* Center snap on mobile */
   background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-xl);
   overflow: hidden;
   cursor: pointer;
-  transition: all var(--duration-normal) var(--ease-out-expo);
-  opacity: 0.6;
-  filter: grayscale(0.8);
-}
-
-@media (max-width: 768px) {
-  .avatar-card {
-    width: 200px;
-    /* Smaller cards for mobile */
-  }
-
-  .avatars-container {
-    gap: var(--space-md);
-    padding: 1rem;
-  }
-
-  .landing-title {
-    font-size: 1.8rem;
-  }
+  transition: transform var(--duration-normal) var(--ease-out-expo), box-shadow var(--duration-normal);
+  opacity: 0.85;
+  filter: grayscale(0.6);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
 }
 
 .avatar-card:hover {
-  opacity: 0.9;
-  filter: grayscale(0.3);
-  transform: translateY(-5px);
-}
-
-.avatar-card.selected {
   opacity: 1;
   filter: grayscale(0);
+  transform: translateY(-12px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 20px rgba(212, 168, 83, 0.3);
   border-color: var(--color-gold);
-  box-shadow: var(--shadow-glow-gold);
-  transform: translateY(-8px) scale(1.02);
 }
 
 .avatar-image {
   width: 100%;
-  aspect-ratio: 3/4;
+  height: 100%;
   object-fit: cover;
-  display: block;
+  transition: transform 0.5s ease;
+}
+
+.avatar-card:hover .avatar-image {
+  transform: scale(1.05);
 }
 
 .avatar-info {
-  padding: var(--space-md);
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 6rem 1.5rem 1.5rem 1.5rem;
+  background: linear-gradient(to top, rgba(10, 10, 15, 0.95) 0%, rgba(10, 10, 15, 0.8) 40%, transparent 100%);
   text-align: center;
+  transform: translateY(100px);
+  /* Hide extra text normally */
+  transition: transform 0.4s var(--ease-out-expo);
+}
+
+.avatar-card:hover .avatar-info {
+  transform: translateY(0);
+  /* Slide up to reveal description */
 }
 
 .avatar-info h3 {
   font-family: var(--font-serif);
-  font-size: 1.4rem;
-  margin-bottom: var(--space-xs);
-  color: var(--text-primary);
-}
-
-.avatar-info p {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-}
-
-.selected-persona-details {
-  max-width: 600px;
-  text-align: center;
-  padding: var(--space-xl);
-  animation: fadeInUp var(--duration-normal) var(--ease-out-expo);
-}
-
-.selected-persona-details h2 {
-  font-family: var(--font-serif);
-  font-size: 2rem;
-  margin-bottom: var(--space-md);
-  background: linear-gradient(135deg, var(--color-gold-bright), var(--color-rose));
+  font-size: 1.6rem;
+  margin-bottom: 0.2rem;
+  color: #fff;
+  background: linear-gradient(135deg, #fff, #d4a853);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-.selected-persona-details p {
-  font-size: 1.1rem;
-  line-height: 1.6;
-  color: var(--text-secondary);
-  margin-bottom: var(--space-xl);
+.avatar-info .avatar-specialty {
+  font-size: 0.9rem;
+  color: var(--color-gold);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 500;
+  margin-bottom: 1rem;
 }
+
+.avatar-description {
+  opacity: 0;
+  height: 0;
+  transition: opacity 0.4s ease, height 0.4s ease;
+}
+
+.avatar-card:hover .avatar-description {
+  opacity: 1;
+  height: auto;
+}
+
+.avatar-description p {
+  font-size: 0.85rem;
+  line-height: 1.5;
+  color: #a0a0a5;
+  margin-bottom: 1rem;
+}
+
+.launch-prompt {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--color-success);
+  text-transform: uppercase;
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 20px;
+  background: rgba(30, 215, 96, 0.1);
+  border: 1px solid rgba(30, 215, 96, 0.3);
+}
+
+/* ── REMOVED .selected-persona-details ── */
 
 /* ── Active Call UI (Voice-Only Mode) ───────────────────── */
 .active-call-ui {

@@ -96,28 +96,22 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                     {PERSONAS.map(persona => (
                         <div
                             key={persona.id}
-                            className={`avatar-card ${selectedId === persona.id ? 'selected' : ''}`}
-                            onClick={() => setSelectedId(persona.id)}
+                            className={`avatar-card`}
+                            onClick={() => onStart(persona)}
                         >
                             <img src={persona.image} alt={persona.name} className="avatar-image" />
+
                             <div className="avatar-info">
                                 <h3>{persona.name}</h3>
-                                <p>{persona.specialty}</p>
+                                <p className="avatar-specialty">{persona.specialty}</p>
+
+                                <div className="avatar-description">
+                                    <p>{persona.description}</p>
+                                    <span className="launch-prompt">Click to connect →</span>
+                                </div>
                             </div>
                         </div>
                     ))}
-                </div>
-
-                <div className="selected-persona-details glass-panel">
-                    <h2>Meet {selectedPersona.name}</h2>
-                    <p>{selectedPersona.description}</p>
-                    <button
-                        className="glass-button landing-cta"
-                        onClick={() => onStart(selectedPersona)}
-                        id="begin-session"
-                    >
-                        Start Now!
-                    </button>
                 </div>
             </div>
         </div>
