@@ -120,7 +120,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
             loader.register((parser) => new VRMLoaderPlugin(parser));
 
             const safePersona = personaName ? personaName.toLowerCase() : 'despina';
-            const modelUrl = `/avatars/${safePersona}.vrm`;
+            const modelUrl = safePersona === 'tony' ? '/models/tony-model.glb' : `/avatars/${safePersona}.vrm`;
 
             try {
                 loader.load(
