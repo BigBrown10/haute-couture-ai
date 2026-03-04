@@ -23,6 +23,20 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
     const lookAtTargetRef = useRef(new THREE.Object3D());
     const mouseRef = useRef(new THREE.Vector2());
 
+    // Fallback Rigging System for Raw GLB Meshes
+    const customRigRef = useRef<{
+        spine: { bone: THREE.Object3D, initX: number } | null;
+        chest: { bone: THREE.Object3D, initX: number } | null;
+        head: { bone: THREE.Object3D, initX: number, initY: number } | null;
+        rightArm: THREE.Object3D | null;
+        leftArm: THREE.Object3D | null;
+        jaw: { bone: THREE.Object3D, initX: number } | null;
+        faceMesh: THREE.Mesh | null;
+        mouthMorphIndices: number[];
+    }>({
+        spine: null, chest: null, head: null, rightArm: null, leftArm: null, jaw: null, faceMesh: null, mouthMorphIndices: []
+    });
+
     // Use refs for rapidly changing props to prevent re-initializing the entire 3D scene
     const volumeRef = useRef(agentVolume);
     const thinkingRef = useRef(isThinking);
@@ -151,10 +165,52 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                             const model = gltf.scene;
                             scene.add(model);
                             model.position.y = globalYShift;
+
+                            const rig = customRigRef.current;
                             model.traverse((obj) => {
                                 obj.frustumCulled = false;
+
+                                // Extract Generic Bone Bindings
+                                if (obj.type === 'Bone') {
+                                    const name = obj.name.toLowerCase();
+
+                                    if (!rig.spine && name.includes('spine') && !name.includes('1') && !name.includes('2')) {
+                                        rig.spine = { bone: obj, initX: obj.rotation.x };
+                                    } else if (!rig.chest && (name.includes('spine1') || name.includes('spine_1') || name.includes('chest'))) {
+                                        rig.chest = { bone: obj, initX: obj.rotation.x };
+                                    } else if (!rig.head && name.includes('head')) {
+                                        rig.head = { bone: obj, initX: obj.rotation.x, initY: obj.rotation.y };
+                                    } else if (!rig.jaw && name.includes('jaw')) {
+                                        rig.jaw = { bone: obj, initX: obj.rotation.x };
+                                    } else if (!rig.rightArm && name.includes('right') && name.includes('arm') && !name.includes('fore')) {
+                                        rig.rightArm = obj;
+                                    } else if (!rig.leftArm && name.includes('left') && name.includes('arm') && !name.includes('fore')) {
+                                        rig.leftArm = obj;
+                                    }
+                                }
+
+                                // Extract Morph Targets
+                                if (obj.type === 'Mesh' || obj.type === 'SkinnedMesh') {
+                                    const mesh = obj as THREE.Mesh;
+                                    if (mesh.morphTargetDictionary) {
+                                        const dict = mesh.morphTargetDictionary;
+                                        const mouthKeys = Object.keys(dict).filter(k =>
+                                            k.toLowerCase().includes('mouth') || k.toLowerCase().includes('jaw') ||
+                                            k.toLowerCase().includes('lip') || k.toLowerCase().includes('viseme')
+                                        );
+                                        if (mouthKeys.length > 0) {
+                                            rig.faceMesh = mesh;
+                                            rig.mouthMorphIndices = mouthKeys.map(k => dict[k]);
+                                        }
+                                    }
+                                }
                             });
-                            console.log('Successfully loaded raw GLB mesh without VRM extensions.');
+
+                            // Pre-apply fixed arm relaxations from T-Pose using Inverse Kinematics assumptions
+                            if (rig.rightArm) rig.rightArm.rotation.z -= 1.25; // drop right arm 70 deg
+                            if (rig.leftArm) rig.leftArm.rotation.z += 1.25; // drop left arm 70 deg
+
+                            console.log('Successfully loaded and auto-rigged raw GLB mesh.');
                         }
 
                         VRMUtils.removeUnnecessaryVertices(gltf.scene);
@@ -316,14 +372,28 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 const mouthRound = smoothedVolumes.current.u;
 
                 // VRM 1.0 keys
-                currentVrm.expressionManager?.setValue('aa', mouthOpen);
-                currentVrm.expressionManager?.setValue('ih', mouthWide);
-                currentVrm.expressionManager?.setValue('oh', mouthRound);
+                // 2. Viseme Lip Sync Integration (Hardware Mouth Sync)
+                if (currentVol > 0.05) {
+                    currentVrm.expressionManager?.setValue('aa', currentVol * 1.5);
+                    currentVrm.expressionManager?.setValue('ih', mouthWide); // Keep ih for now
+                    currentVrm.expressionManager?.setValue('oh', currentVol * 0.5);
+                } else {
+                    currentVrm.expressionManager?.setValue('aa', lerp(currentVrm.expressionManager.getValue('aa') || 0, 0, 0.2));
+                    currentVrm.expressionManager?.setValue('ih', lerp(currentVrm.expressionManager.getValue('ih') || 0, 0, 0.2)); // Keep ih for now
+                    currentVrm.expressionManager?.setValue('oh', lerp(currentVrm.expressionManager.getValue('oh') || 0, 0, 0.2));
+                }
 
                 // VRM 0.0 fallback keys
-                currentVrm.expressionManager?.setValue('a', mouthOpen);
-                currentVrm.expressionManager?.setValue('i', mouthWide);
-                currentVrm.expressionManager?.setValue('u', mouthRound);
+                // These are usually mapped to the same expressions as VRM 1.0, so we can apply the same logic
+                if (currentVol > 0.05) {
+                    currentVrm.expressionManager?.setValue('a', currentVol * 1.5);
+                    currentVrm.expressionManager?.setValue('i', mouthWide);
+                    currentVrm.expressionManager?.setValue('u', currentVol * 0.5);
+                } else {
+                    currentVrm.expressionManager?.setValue('a', lerp(currentVrm.expressionManager.getValue('a') || 0, 0, 0.2));
+                    currentVrm.expressionManager?.setValue('i', lerp(currentVrm.expressionManager.getValue('i') || 0, 0, 0.2));
+                    currentVrm.expressionManager?.setValue('u', lerp(currentVrm.expressionManager.getValue('u') || 0, 0, 0.2));
+                }
 
                 // Thinking (Blink Rapidly or hold)
                 if (thinkingRef.current) {
