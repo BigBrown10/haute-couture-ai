@@ -27,6 +27,12 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
     const volumeRef = useRef(agentVolume);
     const thinkingRef = useRef(isThinking);
 
+    // Smooth Lip Sync State
+    const smoothedVolumes = useRef({ a: 0, i: 0, u: 0 });
+    const lerp = (start: number, end: number, amt: number) => {
+        return (1 - amt) * start + amt * end;
+    };
+
     useEffect(() => {
         volumeRef.current = agentVolume;
     }, [agentVolume]);
@@ -286,10 +292,15 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                     }
                 }
 
-                // Lip Sync based on True WebAudio Viseme Analysis (VRM 1.0 AND VRM 0.0)
-                const mouthOpen = visemes.a;
-                const mouthWide = visemes.i;
-                const mouthRound = visemes.u;
+                // Smooth Lip Sync based on True WebAudio Viseme Analysis with Lerp
+                const smoothAmt = 0.35; // The lower, the smoother (but lazier)
+                smoothedVolumes.current.a = lerp(smoothedVolumes.current.a, visemes.a, smoothAmt);
+                smoothedVolumes.current.i = lerp(smoothedVolumes.current.i, visemes.i, smoothAmt);
+                smoothedVolumes.current.u = lerp(smoothedVolumes.current.u, visemes.u, smoothAmt);
+
+                const mouthOpen = smoothedVolumes.current.a;
+                const mouthWide = smoothedVolumes.current.i;
+                const mouthRound = smoothedVolumes.current.u;
 
                 // VRM 1.0 keys
                 currentVrm.expressionManager?.setValue('aa', mouthOpen);

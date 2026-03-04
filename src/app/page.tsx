@@ -53,6 +53,7 @@ export default function HomePage() {
     endSession,
     sendAudioChunk,
     sendVideoFrame,
+    sendGarmentPhoto,
     sendText,
     requestOutfit,
   } = useSocketConnection({
@@ -189,13 +190,13 @@ export default function HomePage() {
           const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
           const base64Data = dataUrl.split(',')[1];
           setGarmentPhoto(base64Data);
-          sendVideoFrame(base64Data);
+          sendGarmentPhoto(base64Data);
           sendText("Wait, what about this specific item? Can you place this on me so I can see how it looks?");
         }
       };
       img.src = URL.createObjectURL(file);
     },
-    [sendVideoFrame, sendText]
+    [sendGarmentPhoto, sendText]
   );
 
   // Outfit generation request

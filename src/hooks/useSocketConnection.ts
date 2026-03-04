@@ -122,6 +122,10 @@ export function useSocketConnection(props: UseSocketConnectionProps) {
         socketRef.current?.emit('text-in', text);
     }, []);
 
+    const sendGarmentPhoto = useCallback((frameBase64: string) => {
+        socketRef.current?.emit('garment-photo', frameBase64);
+    }, []);
+
     const requestOutfit = useCallback((prompt: string, eventContext: string, styleNotes?: string) => {
         socketRef.current?.emit('generate-outfit', { prompt, eventContext, styleNotes });
     }, []);
@@ -132,6 +136,7 @@ export function useSocketConnection(props: UseSocketConnectionProps) {
         endSession,
         sendAudioChunk,
         sendVideoFrame,
+        sendGarmentPhoto,
         sendText,
         requestOutfit,
     };

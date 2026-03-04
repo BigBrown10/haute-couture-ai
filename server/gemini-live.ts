@@ -26,7 +26,9 @@ export type AgentMode = 'stylist' | 'designer';
 export class GeminiLiveSession {
     private session: Session | null = null;
     private callbacks: LiveSessionCallbacks;
-    private latestVideoFrame: string | null = null;
+    // Track state for virtual try-on payload construction
+    private latestUserFrame: string | null = null;
+    private latestGarmentFrame: string | null = null;
     private isConnected = false;
     private voiceName: string;
     private mode: AgentMode;
@@ -129,12 +131,12 @@ export class GeminiLiveSession {
     }
 
     /**
-     * Send a video frame (Base64 JPEG) to the Live API.
+     * Send a video frame (Base64 JPEG) to the Live API as the primary user subject.
      */
-    sendVideoFrame(frameBase64: string): void {
+    sendUserFrame(frameBase64: string): void {
         if (!this.session || !this.isConnected) return;
 
-        this.latestVideoFrame = frameBase64;
+        this.latestUserFrame = frameBase64;
 
         try {
             this.session.sendRealtimeInput({
@@ -144,8 +146,17 @@ export class GeminiLiveSession {
                 },
             });
         } catch (error) {
-            console.error('[GeminiLive] Error sending video frame:', error);
+            console.error('[GeminiLive] Error sending user frame:', error);
         }
+    }
+
+    /**
+     * Store a garment photo to be used as a reference/target for Virtual Try-On.
+     * We don't send this as a video frame to Gemini to prevent disrupting the face/identity context.
+     * Instead, it waits here until the generate_outfit tool is invoked.
+     */
+    sendGarmentFrame(frameBase64: string): void {
+        this.latestGarmentFrame = frameBase64;
     }
 
     /**
@@ -246,8 +257,12 @@ export class GeminiLiveSession {
             prompt: args.prompt || 'A sophisticated, well-tailored outfit',
             eventContext: args.event_context || 'general styling',
             styleNotes: args.style_notes,
-            userFrameBase64: this.latestVideoFrame || undefined,
+            userFrameBase64: this.latestUserFrame || undefined,
+            garmentFrameBase64: this.latestGarmentFrame || undefined,
         });
+
+        // Optional: clear garment after it's been processed, or let them reuse it.
+        // We will keep it so the user can iterate on the same garment.
 
         this.callbacks.onGeneratedOutfit(result.imageBase64, result.caption);
         this.callbacks.onThinking('');

@@ -67,6 +67,14 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
             source.connect(analyser); // Connect to analyser instead of direct destination
 
             const now = ctx.currentTime;
+
+            // ANTI-DRIFT GAP SKIPPER
+            // If network lags and chunks arrive later than the previous chunk's end time, 
+            // the queue normally waits. We forcefully resync to 'now' + 50ms buffer to skip dead air.
+            if (nextStartTimeRef.current < now) {
+                nextStartTimeRef.current = now + 0.05;
+            }
+
             const startTime = Math.max(now, nextStartTimeRef.current);
             source.start(startTime);
             nextStartTimeRef.current = startTime + audioBuffer.duration;

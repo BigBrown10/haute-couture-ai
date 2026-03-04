@@ -138,19 +138,18 @@ export async function generateFashionSketch(
     try {
         const genAI = new GoogleGenAI({ apiKey });
         const fullPrompt = [
-            `TASK: Create a professional, high-fidelity fashion illustration for a design titled: "${params.conceptName}".`,
-            'STYLE: PURE ARTISTIC SKETCH. Technical line art with subtle watercolor or marker shading.',
-            'BACKGROUND: Plain cream or off-white premium artist paper. NO LIFESTYLE ELEMENTS. NO STREETS. NO BUILDINGS. NO REAL PEOPLE.',
-            'SUBJECT: A professional fashion croquis (stylized, faceless human figure) wearing the design.',
-            'COMPOSITION: Single, centered, full-body portrait. High-end editorial illustration style.',
+            `TASK: Create a professional, high-fidelity fashion illustration sketch for a design titled: "${params.conceptName}".`,
+            'STYLE: PURE ARTISTIC SKETCH. Color pencil and ink sketch. It must look exactly like a working sketch handed to a master tailor.',
+            'BACKGROUND: Plain cream or off-white premium artist paper. NO LIFESTYLE ELEMENTS. ZERO BACKGROUND CLUTTER.',
+            'SUBJECT: A professional fashion "croquis" drawing. The mannequin must have a distinct pencil-sketched outline, featuring visible joints/ball markings, slender proportions, and NO detailed facial features, just the structural cross-hair lines on the head.',
+            'COMPOSITION: Single, centered, full-body portrait sketch.',
             '',
             `DESIGN CONCEPT: ${params.prompt}`,
             '',
             'REQUIREMENTS:',
-            '- Focus on drape, seam placement, and fabric texture.',
-            '- Use a traditional medium (e.g., thin ink pen, charcoal, soft watercolor).',
-            '- Must look like it was drawn by a master at a legendary Parisian maison.',
-            '- THE FINAL IMAGE MUST BE JUST THE SKETCH ON PAPER. ZERO EXTRA PROPS OR BACKGROUNDS.',
+            '- The garment must be vibrantly colored (e.g. detailed floral shading) contrasting beautifully with the minimalist pencil-sketched croquis mannequin.',
+            '- Focus heavily on structural drape, seam placement, and highly detailed fabric textures.',
+            '- THE FINAL IMAGE MUST BE JUST THE SKETCH ON PAPER. ZERO 3D RENDERS. ZERO PHOTOGRAPHY.',
         ].join('\n');
 
         console.log('[VisionPipeline] Generating sketch with', VISION_MODEL, '...');

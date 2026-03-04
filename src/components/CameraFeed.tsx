@@ -92,27 +92,41 @@ export default function CameraFeed({ enabled, onFrame }: CameraFeedProps) {
     }, [onFrame]);
 
     return (
-        <>
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
             {hasCamera ? (
                 <video
                     ref={videoRef}
                     playsInline
                     muted
                     autoPlay
-                    style={{ pointerEvents: 'none' }}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
                 />
             ) : (
-                <div className="camera-placeholder">
-                    <div style={{ textAlign: 'center', opacity: 0.3 }}>
-                        <div style={{ fontSize: '4rem', marginBottom: '16px' }}>📸</div>
-                        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.1rem' }}>
-                            {enabled ? 'Requesting camera access...' : 'Camera is off'}
+                <div className="camera-placeholder" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 'inherit' }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ marginBottom: '16px' }}>
+                            <label className="glass-button" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '12px 24px', borderRadius: '30px', fontSize: '1.2rem' }}>
+                                📤 Upload Photo
+                                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                            const base64 = (ev.target?.result as string).split(',')[1];
+                                            if (base64) onFrame(base64);
+                                        };
+                                        reader.readAsDataURL(e.target.files[0]);
+                                    }
+                                }} />
+                            </label>
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.1rem', opacity: 0.7 }}>
+                            {enabled ? 'Camera off or unavailable' : 'Camera is off'}
                         </div>
                     </div>
                 </div>
             )}
             {/* Hidden canvas for frame extraction */}
             <canvas ref={canvasRef} style={{ display: 'none' }} />
-        </>
+        </div>
     );
 }

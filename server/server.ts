@@ -130,7 +130,13 @@ io.on('connection', (socket) => {
     // ── Receive Video Frame from Client ────────────────────
     socket.on('video-frame', (frameBase64: string) => {
         if (liveSession?.connected) {
-            liveSession.sendVideoFrame(frameBase64);
+            liveSession.sendUserFrame(frameBase64); // renamed from sendVideoFrame
+        }
+    });
+
+    socket.on('garment-photo', (frameBase64: string) => {
+        if (liveSession?.connected) {
+            liveSession.sendGarmentFrame(frameBase64);
         }
     });
 

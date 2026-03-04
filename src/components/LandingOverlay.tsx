@@ -65,9 +65,22 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
 
     return (
         <div className={`landing-overlay ${exiting ? 'exiting' : ''}`}>
-            <div className="landing-content-wide">
-                <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                    <p className="landing-subtitle" style={{ fontSize: '1.2rem', opacity: 0.8 }}>
+            {/* Spline 3D Interactive Background */}
+            <div className="spline-bg-wrapper">
+                <iframe
+                    src='https://my.spline.design/darkmatter-44e1ca1aebaf4293f9de2da2cbde3b1f/'
+                    frameBorder='0'
+                    width='100%'
+                    height='100%'
+                    className="spline-iframe"
+                    title="Interactive 3D Background"
+                />
+            </div>
+
+            <div className="landing-content-wide spline-overlay-panel">
+                <div style={{ textAlign: 'center', marginBottom: '4rem' }}>
+                    <h1 className="landing-title-premium">PROJECT HAUTE COUTURE</h1>
+                    <p className="landing-subtitle-premium">
                         Meet your new AI fashion bestie.
                     </p>
                 </div>

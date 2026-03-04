@@ -677,6 +677,61 @@ body {
   box-shadow: 0 0 25px rgba(255, 77, 106, 0.3);
 }
 
+.control-btn.action-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+}
+
+.control-btn.action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+}
+
+.control-btn.try-on-ready {
+  background: rgba(147, 112, 219, 0.15);
+  border-color: rgba(147, 112, 219, 0.3);
+  box-shadow: 0 0 15px rgba(147, 112, 219, 0.2);
+}
+
+.control-btn.try-on-ready:hover {
+  background: rgba(147, 112, 219, 0.25);
+  box-shadow: 0 0 25px rgba(147, 112, 219, 0.4);
+}
+
+.control-btn.try-on-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.tooltip-container {
+  position: relative;
+}
+
+.tooltip-container .tooltip {
+  visibility: hidden;
+  background-color: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  text-align: center;
+  border-radius: 6px;
+  padding: 5px 10px;
+  position: absolute;
+  z-index: 10;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0;
+  transition: opacity 0.3s;
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.tooltip-container:hover .tooltip {
+  visibility: visible;
+  opacity: 1;
+}
+
 .voice-select {
   background: var(--glass-bg);
   backdrop-filter: blur(12px);
@@ -781,15 +836,79 @@ body {
 }
 
 /* ── Landing Overlay ────────────────────────────────────── */
+/* ── Landing Page Refinement for $30M UX ────────────────── */
 .landing-overlay {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  z-index: 100;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: radial-gradient(ellipse at center, rgba(10, 10, 15, 0.85) 0%, rgba(10, 10, 15, 0.97) 100%);
-  animation: fadeIn var(--duration-slow) var(--ease-out-expo);
+  background: radial-gradient(circle at center, rgba(18, 18, 26, 0.4) 0%, rgba(10, 10, 15, 0.95) 100%);
+  z-index: 100;
+  transition: opacity 1s var(--ease-out-expo), transform 1s var(--ease-out-expo), filter 1s var(--ease-out-expo);
+  backdrop-filter: blur(12px);
+  /* Adds depth over the 3D Spline scene */
+}
+
+/* Base Spline Integration */
+.spline-bg-wrapper {
+  position: absolute;
+  inset: -10px;
+  /* Slight overflow to hide edges during entry animation */
+  z-index: -1;
+  /* Push absolutely behind everything */
+  pointer-events: auto;
+  /* Allow mouse interaction with the 3D scene! */
+  overflow: hidden;
+}
+
+.spline-iframe {
+  width: 100%;
+  height: 100%;
+  opacity: 0.8;
+  /* Blend beautifully with the dark gradient */
+  mix-blend-mode: screen;
+  /* Luxury tech look for dark matter */
+  filter: saturate(1.2) contrast(1.1);
+  transition: opacity 2s ease-in-out;
+}
+
+/* Make the main panel stand out luxuriously */
+.spline-overlay-panel {
+  background: rgba(10, 10, 15, 0.4);
+  /* Extremely sheer glass */
+  backdrop-filter: blur(30px);
+  -webkit-backdrop-filter: blur(30px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-xl);
+  padding: 3.5rem;
+  pointer-events: auto;
+}
+
+/* Premium Typography */
+.landing-title-premium {
+  font-family: var(--font-serif);
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  background: linear-gradient(135deg, #ffffff 0%, #a0a0a5 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.landing-subtitle-premium {
+  font-family: var(--font-sans);
+  font-size: 1.15rem;
+  font-weight: 300;
+  letter-spacing: 0.05em;
+  color: #d4a853;
+  /* Pure Gold */
+  text-transform: lowercase;
+  opacity: 0.9;
 }
 
 .landing-overlay.exiting {
