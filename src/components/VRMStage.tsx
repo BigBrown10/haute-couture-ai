@@ -126,25 +126,36 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                 loader.load(
                     modelUrl,
                     (gltf) => {
-                        const vrm = gltf.userData.vrm as VRM;
-                        currentVrm = vrm;
-                        vrmRef.current = vrm;
-                        scene.add(vrm.scene);
-                        vrm.scene.rotation.y = Math.PI;
-                        vrm.scene.position.y = globalYShift; // Lift the avatar to stand exactly on the shifted podium
+                        if (gltf.userData.vrm) {
+                            const vrm = gltf.userData.vrm as VRM;
+                            currentVrm = vrm;
+                            vrmRef.current = vrm;
+                            scene.add(vrm.scene);
+                            vrm.scene.rotation.y = Math.PI;
+                            vrm.scene.position.y = globalYShift; // Lift the avatar to stand exactly on the shifted podium
 
-                        // Remove static raw bone assignment here, it gets overwritten.
-                        // We will enforce the relaxed pose and procedural animation inside the render loop.
+                            // Remove static raw bone assignment here, it gets overwritten.
+                            // We will enforce the relaxed pose and procedural animation inside the render loop.
 
-                        // Setup LookAt for mouse tracking
-                        if (vrm.lookAt) {
-                            vrm.lookAt.target = lookAtTargetRef.current;
+                            // Setup LookAt for mouse tracking
+                            if (vrm.lookAt) {
+                                vrm.lookAt.target = lookAtTargetRef.current;
+                            }
+
+                            // Disable Frustum culling for robust rendering
+                            vrm.scene.traverse((obj) => {
+                                obj.frustumCulled = false;
+                            });
+                        } else {
+                            // Standard GLTF/GLB Fallback (No VRM Extensions)
+                            const model = gltf.scene;
+                            scene.add(model);
+                            model.position.y = globalYShift;
+                            model.traverse((obj) => {
+                                obj.frustumCulled = false;
+                            });
+                            console.log('Successfully loaded raw GLB mesh without VRM extensions.');
                         }
-
-                        // Disable Frustum culling for robust rendering
-                        vrm.scene.traverse((obj) => {
-                            obj.frustumCulled = false;
-                        });
 
                         VRMUtils.removeUnnecessaryVertices(gltf.scene);
                     },
