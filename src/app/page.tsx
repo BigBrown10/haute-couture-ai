@@ -6,6 +6,7 @@ import GlassControlBar from '@/components/GlassControlBar';
 import OutfitGallery from '@/components/OutfitGallery';
 import ActiveCallUI from '../components/ActiveCallUI';
 import LandingOverlay, { Persona } from '@/components/LandingOverlay';
+import SplashScreen from '@/components/SplashScreen';
 import { useSocketConnection } from '@/hooks/useSocketConnection';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
 import { useAudioPlayback, VisemeData } from '@/hooks/useAudioPlayback';
@@ -23,6 +24,7 @@ export default function HomePage() {
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [landingExiting, setLandingExiting] = useState(false);
+  const [splashExited, setSplashExited] = useState(false);
   const [outfits, setOutfits] = useState<GeneratedOutfit[]>([]);
   const [thinkingStatus, setThinkingStatus] = useState<string | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
@@ -213,6 +215,10 @@ export default function HomePage() {
     },
     [requestOutfit, mode]
   );
+
+  if (!splashExited) {
+    return <SplashScreen onEnter={() => setSplashExited(true)} />;
+  }
 
   return (
     <main className="app-container">
