@@ -413,6 +413,46 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
 
                 const t = Date.now() / 1000;
                 activeBillboard.position.y = 1.4 + Math.sin(t * 2) * 0.02;
+            } else {
+                // --- Custom Rig GLB Fallback Procedural Animation ---
+                const rig = customRigRef.current;
+                const t = Date.now() / 1000;
+                const currentVol = volumeRef.current.volume;
+
+                // Organic Breathing & Posture
+                if (rig.spine) rig.spine.bone.rotation.x = rig.spine.initX + Math.sin(t * 1.5) * 0.02;
+                if (rig.chest) rig.chest.bone.rotation.x = rig.chest.initX + (Math.sin(t * 1.5) * 0.01) + (currentVol * 0.05);
+
+                // Head tracking (Target Mouse)
+                if (rig.head) {
+                    const targetX = mouseRef.current.x * 0.5;
+                    const targetY = mouseRef.current.y * 0.5;
+                    rig.head.bone.rotation.y = lerp(rig.head.bone.rotation.y, rig.head.initY + targetX, 0.1);
+                    rig.head.bone.rotation.x = lerp(rig.head.bone.rotation.x, rig.head.initX - targetY, 0.1);
+                }
+
+                // Audio Lip Sync Overrides
+                if (currentVol > 0.05) {
+                    // Jaw direct manipulation
+                    if (rig.jaw) rig.jaw.bone.rotation.x = rig.jaw.initX + (currentVol * 0.25);
+
+                    // Hardware Blendshapes / Morph Targets
+                    if (rig.faceMesh && rig.faceMesh.morphTargetInfluences) {
+                        rig.mouthMorphIndices.forEach(idx => {
+                            rig.faceMesh!.morphTargetInfluences![idx] = lerp(rig.faceMesh!.morphTargetInfluences![idx], currentVol * 1.5, 0.3);
+                        });
+                    }
+                } else {
+                    // Relax Jaw
+                    if (rig.jaw) rig.jaw.bone.rotation.x = lerp(rig.jaw.bone.rotation.x, rig.jaw.initX, 0.2);
+
+                    // Relax Morphs
+                    if (rig.faceMesh && rig.faceMesh.morphTargetInfluences) {
+                        rig.mouthMorphIndices.forEach(idx => {
+                            rig.faceMesh!.morphTargetInfluences![idx] = lerp(rig.faceMesh!.morphTargetInfluences![idx], 0, 0.2);
+                        });
+                    }
+                }
             }
 
             controls.update();
