@@ -30,7 +30,7 @@ export const PERSONAS: Persona[] = [
         specialty: 'Sneakerhead Brother',
         description: 'The effortlessly cool brother who knows every drop. He focuses on drip, proportions, and making sure your streetwear game is untouchable.',
         image: '/avatars/tony.png',
-        voice: 'Puck',
+        voice: 'Puck', // Puck is male
         mode: 'stylist'
     },
     {
@@ -39,7 +39,7 @@ export const PERSONAS: Persona[] = [
         specialty: 'Your Glam Bestie',
         description: 'Bubbly, energetic, and your biggest hype woman! She specialize in making sure you look absolutely stunning for any event, from prom to the red carpet.',
         image: '/avatars/gina.png',
-        voice: 'Aoede',
+        voice: 'Aoede', // Aoede is female
         mode: 'stylist'
     },
     {
@@ -48,7 +48,7 @@ export const PERSONAS: Persona[] = [
         specialty: 'Haute Couture Illustrator',
         description: 'Sophisticated, precise, and visionary. Aria translates your wildest design concepts into pure, high-fidelity sketches and patterns. She is a peer for designers and a mentor for tailors.',
         image: '/avatars/aria.png',
-        voice: 'Charon',
+        voice: 'Aoede', // Aoede is female instead of Charon (male)
         mode: 'designer'
     }
 ];
