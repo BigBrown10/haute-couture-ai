@@ -234,8 +234,8 @@ export default function HomePage() {
           <header className="top-bar">
             <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
               <img src="/hc-logo.png" alt="HC Logo" style={{ height: '32px', width: 'auto', objectFit: 'contain' }} />
-              <span className="brand-name" style={{ fontFamily: 'var(--font-serif)', fontSize: '1.2rem', fontWeight: 400, letterSpacing: '1px', textTransform: 'none' }}>
-                Haute couture
+              <span className="brand-name" style={{ fontFamily: 'var(--font-serif)', fontSize: '1.4rem', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase' }}>
+                HAUTE COUTURE
               </span>
             </div>
           </header>

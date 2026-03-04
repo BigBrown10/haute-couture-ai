@@ -69,7 +69,7 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
             <div className="top-nav-bar">
                 <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
                     <img src="/hc-logo.png" alt="HC Logo" style={{ height: '38px', width: 'auto', objectFit: 'contain' }} />
-                    <h1 className="landing-title-premium-small" style={{ textTransform: 'none', letterSpacing: '1px', fontWeight: 400 }}>Haute couture</h1>
+                    <h1 className="landing-title-premium-small">HAUTE COUTURE</h1>
                 </div>
                 <div className="nav-menu">
                     <button className="nav-link">Home</button>
