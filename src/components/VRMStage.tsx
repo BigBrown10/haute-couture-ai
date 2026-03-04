@@ -451,11 +451,27 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                     // Jaw direct manipulation
                     if (rig.jaw) rig.jaw.bone.rotation.x = rig.jaw.initX + (currentVol * 0.25);
 
-                    // Hardware Blendshapes / Morph Targets
-                    if (rig.faceMesh && rig.faceMesh.morphTargetInfluences && rig.mouthMorphIndices.length > 0) {
-                        rig.mouthMorphIndices.forEach(idx => {
-                            rig.faceMesh!.morphTargetInfluences![idx] = lerp(rig.faceMesh!.morphTargetInfluences![idx], currentVol * 1.5, 0.3);
-                        });
+                    // Hardware Blendshapes / Morph Targets (Wawa-Lipsync & ARKit Compatibility Layer)
+                    if (rig.faceMesh && rig.faceMesh.morphTargetDictionary) {
+                        const dict = rig.faceMesh.morphTargetDictionary;
+                        const inf = rig.faceMesh.morphTargetInfluences!;
+
+                        const applyMorph = (key: string, value: number) => {
+                            let idx = dict[key];
+                            if (idx === undefined) {
+                                const lowerKey = Object.keys(dict).find(k => k.toLowerCase() === key.toLowerCase() || k.toLowerCase().includes(key.toLowerCase()));
+                                if (lowerKey) idx = dict[lowerKey];
+                            }
+                            if (idx !== undefined) inf[idx] = lerp(inf[idx], value, 0.3);
+                        };
+
+                        applyMorph('jawOpen', currentVol * 1.5);
+                        applyMorph('mouthFunnel', smoothedVolumes.current.u * 1.5);
+                        applyMorph('mouthPucker', smoothedVolumes.current.u * 1.0);
+                        applyMorph('mouthSmile', smoothedVolumes.current.i * 0.8);
+                        applyMorph('mouthRollUpper', currentVol * 0.5);
+                        applyMorph('mouthRollLower', currentVol * 0.5);
+
                     } else if (rig.head) {
                         // PS1 Era Talk Simulation: No jaw/lips available, bob the head organically to syllables
                         rig.head.bone.rotation.x += currentVol * 0.1;
@@ -467,10 +483,11 @@ export default function VRMStage({ personaName, agentVolume, isThinking }: VRMSt
                     if (rig.jaw) rig.jaw.bone.rotation.x = lerp(rig.jaw.bone.rotation.x, rig.jaw.initX, 0.2);
 
                     // Relax Morphs
-                    if (rig.faceMesh && rig.faceMesh.morphTargetInfluences && rig.mouthMorphIndices.length > 0) {
-                        rig.mouthMorphIndices.forEach(idx => {
-                            rig.faceMesh!.morphTargetInfluences![idx] = lerp(rig.faceMesh!.morphTargetInfluences![idx], 0, 0.2);
-                        });
+                    if (rig.faceMesh && rig.faceMesh.morphTargetDictionary) {
+                        const inf = rig.faceMesh.morphTargetInfluences!;
+                        for (let i = 0; i < inf.length; i++) {
+                            inf[i] = lerp(inf[i], 0, 0.2);
+                        }
                     }
                 }
             }
