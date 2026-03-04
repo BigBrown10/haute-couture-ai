@@ -1711,10 +1711,30 @@ body {
 
 .close-fullscreen {
   position: absolute;
-  top: 40px;
+  top: 30px;
   right: 40px;
-  font-size: 2rem;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(10, 10, 15, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 1.5rem;
   color: #fff;
+  cursor: pointer;
+  z-index: 1010;
+  transition: all 0.2s ease;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+.close-fullscreen:hover {
+  background: rgba(10, 10, 15, 0.85);
+  transform: scale(1.05);
+  border-color: rgba(255, 255, 255, 0.4);
 }
 
 /* ── Keyframes ──────────────────────────────────────────── */
