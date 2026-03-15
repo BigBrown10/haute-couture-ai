@@ -103,7 +103,7 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
                             // Pass 1 for the active viseme, 0 for the rest.
                             // vrmstage.tsx uses lerp() to smoothly glide between these!
                             onVolumeChange({
-                                volume: vol * 10.0,
+                                volume: Math.min(vol * 1.5, 1.0),
                                 a: activeViseme === 'viseme_aa' ? 1.0 : 0,
                                 i: activeViseme === 'viseme_I' ? 1.0 : 0,
                                 u: activeViseme === 'viseme_U' ? 1.0 : 0,

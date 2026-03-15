@@ -2,10 +2,10 @@ import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Haute Couture AI — Your Brutally Honest Fashion Stylist',
+  title: 'Zaute AI — Your Brutally Honest 3D Fashion Designer',
   description:
-    'Real-time AI fashion critique powered by a brutally honest Hollywood stylist with 30+ years of experience. Present your outfit and get devastatingly accurate, expert-level feedback.',
-  keywords: ['fashion', 'AI stylist', 'outfit critique', 'Gemini', 'real-time'],
+    'Real-time AI fashion critique and 3D design powered by Zaute. Present your outfit and get expert-level feedback or collaborate on high-fidelity sketches.',
+  keywords: ['fashion', 'AI designer', '3D character', 'Zaute', 'real-time'],
 };
 
 export default function RootLayout({
@@ -15,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body suppressHydrationWarning>{children}</body>
     </html>
   );
 }

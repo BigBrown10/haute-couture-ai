@@ -12,6 +12,7 @@ import {
     DESIGNER_SYSTEM_PROMPT,
     TONY_SYSTEM_PROMPT,
     GINA_SYSTEM_PROMPT,
+    SNEAKERHEAD_IMAGINATION_PROMPT,
     ARIA_SYSTEM_PROMPT,
     GENERATE_OUTFIT_TOOL,
     GENERATE_SKETCH_TOOL,
@@ -25,6 +26,7 @@ const LIVE_MODEL = 'gemini-2.5-flash-native-audio-latest';
 export interface LiveSessionCallbacks {
     onAudioOut: (audioBase64: string) => void;
     onTranscript: (text: string, role: 'agent' | 'user') => void;
+    onThought?: (text: string) => void;
     onGeneratedOutfit: (imageBase64: string | null, caption: string) => void;
     onThinking: (status: string) => void;
     onError: (message: string) => void;
@@ -42,6 +44,7 @@ export class GeminiLiveSession {
     private latestGarmentFrame: string | null = null;
     private turnGenerationCount: number = 0;
     private isConnected = false;
+    private textBuffer = '';
     private voiceName: string;
     private mode: AgentMode;
 
@@ -68,7 +71,7 @@ export class GeminiLiveSession {
             if (isDesigner) {
                 systemPrompt = DESIGNER_SYSTEM_PROMPT;
             } else if (this.voiceName === 'Puck') {
-                systemPrompt = TONY_SYSTEM_PROMPT;
+                systemPrompt = TONY_SYSTEM_PROMPT + "\n\n" + SNEAKERHEAD_IMAGINATION_PROMPT;
             } else if (this.voiceName === 'Aoede') {
                 systemPrompt = GINA_SYSTEM_PROMPT;
             } else if (this.voiceName === 'Charon') {
@@ -211,7 +214,25 @@ export class GeminiLiveSession {
                     for (const part of parts) {
                         // Text response
                         if (part.text) {
-                            this.callbacks.onTranscript(part.text, 'agent');
+                            // REAL-TIME SCOUTING & SCRUBBING
+                            // Extract **...** blocks as thought/reasoning
+                            const thoughtMatch = part.text.match(/\*\*([\s\S]*?)\*\*/);
+                            if (thoughtMatch && thoughtMatch[1] && this.callbacks.onThought) {
+                                this.callbacks.onThought(thoughtMatch[1]);
+                            }
+
+                            // Remove thought blocks from the main transcript
+                            let cleanChunk = part.text.replace(/\*\*[\s\S]*?\*\*/g, '');
+                            cleanChunk = cleanChunk.replace(/\*\*/g, '');
+                            
+                            if (cleanChunk) {
+                                this.textBuffer += cleanChunk;
+                                this.callbacks.onTranscript(cleanChunk, 'agent');
+                            }
+                            
+                            if (content.turnComplete) {
+                                this.textBuffer = '';
+                            }
                         }
 
                         // Audio response

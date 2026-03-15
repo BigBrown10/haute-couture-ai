@@ -7,6 +7,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:300
 
 interface UseSocketConnectionProps {
     onTranscript: (text: string, role: 'agent' | 'user') => void;
+    onThought?: (text: string) => void;
     onGeneratedOutfit: (imageBase64: string | null, caption: string) => void;
     onThinking: (status: string) => void;
     onSessionStarted: (mode: 'live') => void;
@@ -53,6 +54,10 @@ export function useSocketConnection(props: UseSocketConnectionProps) {
 
         socket.on('transcript', (data: { text: string; role: 'agent' | 'user' }) => {
             callbacksRef.current.onTranscript(data.text, data.role);
+        });
+        
+        socket.on('agent-thought', (data: { text: string }) => {
+            callbacksRef.current.onThought?.(data.text);
         });
 
         socket.on('generated-outfit', (data: { imageBase64: string | null; caption: string }) => {

@@ -8,10 +8,11 @@ import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
 import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { VisemeData } from '@/hooks/useAudioPlayback';
 
 interface VRMStageProps {
     personaName: string;
-    agentVolume: { volume: number; a: number; i: number; u: number; e: number; o: number };
+    agentVolumeRef: React.MutableRefObject<VisemeData>;
     isThinking: boolean;
     agentGesture: string | null;
 }
@@ -47,7 +48,7 @@ Object.entries(MIXAMO_TO_AVATURN_MAP).forEach(([mix, ava]) => {
     AVATURN_TO_MIXAMO_MAP[ava] = mix;
 });
 
-export default function VRMStage({ personaName, agentVolume, isThinking, agentGesture }: VRMStageProps) {
+export default function VRMStage({ personaName, agentVolumeRef, isThinking, agentGesture }: VRMStageProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -56,15 +57,9 @@ export default function VRMStage({ personaName, agentVolume, isThinking, agentGe
     const activeActionRef = useRef<THREE.AnimationAction | null>(null);
     const activeAnimNameRef = useRef<string>('idle');
     const modelRef = useRef<THREE.Group | null>(null);
-    const faceMeshRef = useRef<THREE.SkinnedMesh | null>(null);
+    const faceMeshesRef = useRef<THREE.SkinnedMesh[]>([]);
 
     const [debugError, setDebugError] = useState<string | null>(null);
-
-    // STALE CLOSURE FIX: Keep a mutable ref of the latest volume data
-    const latestVolumeRef = useRef(agentVolume);
-    useEffect(() => {
-        latestVolumeRef.current = agentVolume;
-    }, [agentVolume]);
 
     useEffect(() => {
         if (!canvasRef.current || !containerRef.current) return;
@@ -126,26 +121,30 @@ export default function VRMStage({ personaName, agentVolume, isThinking, agentGe
             scene.add(model);
 
             // Discovery
+            const discoveredFaceMeshes: THREE.SkinnedMesh[] = [];
             let targetSkinnedMesh: THREE.SkinnedMesh | null = null;
             model.traverse((child) => {
                 if ((child as any).isSkinnedMesh) {
                     const sm = child as THREE.SkinnedMesh;
+                    
                     if (!targetSkinnedMesh && sm.skeleton) targetSkinnedMesh = sm;
                     
-                    // FIX: Strictly identify the face by checking for actual mouth morph targets
-                    // This prevents clothing meshes from overwriting the faceMeshRef
+                    // FIX: Identify ALL meshes that need facial animation (Head, Teeth, Tongue)
                     if (sm.morphTargetDictionary) {
                         const hasMouthMorphs = 
                             sm.morphTargetDictionary['jawOpen'] !== undefined || 
                             sm.morphTargetDictionary['viseme_aa'] !== undefined ||
-                            sm.morphTargetDictionary['mouthOpen'] !== undefined;
+                            sm.morphTargetDictionary['mouthOpen'] !== undefined ||
+                            sm.morphTargetDictionary['v_aa'] !== undefined ||
+                            sm.morphTargetDictionary['MouthOpen'] !== undefined;
                             
                         if (hasMouthMorphs) {
-                            faceMeshRef.current = sm;
+                            discoveredFaceMeshes.push(sm);
                         }
                     }
                 }
             });
+            faceMeshesRef.current = discoveredFaceMeshes;
 
             if (!targetSkinnedMesh) {
                 setDebugError('No SkinnedMesh found in GLB');
@@ -183,7 +182,7 @@ export default function VRMStage({ personaName, agentVolume, isThinking, agentGe
                         if (!sourceObj) {
                             const bones: THREE.Bone[] = [];
                             fbx.traverse(c => { if ((c as any).isBone) bones.push(c as THREE.Bone); });
-                            
+
                             // FIX: Attach the skeleton directly to the FBX group root.
                             // This allows the internal AnimationMixer in retargetClip to properly
                             // find and animate the bone hierarchy during the sampling phase.
@@ -243,42 +242,78 @@ export default function VRMStage({ personaName, agentVolume, isThinking, agentGe
                 mixerRef.current.update(dt);
             }
 
-            // Lip Sync
-            const face = faceMeshRef.current;
-            if (face && face.morphTargetDictionary && face.morphTargetInfluences) {
-                const dict = face.morphTargetDictionary;
-                const inf = face.morphTargetInfluences;
+            // LIP SYNC & BLINKING (Multi-Mesh Sync + Magic Clamp + Fast Attack)
+            const meshes = faceMeshesRef.current;
+            if (meshes.length > 0) {
+                const volData = agentVolumeRef.current;
+                const vol = volData.volume || 0;
                 
-                // READ FROM THE REF, NOT THE STALE PROP
-                const currentVol = latestVolumeRef.current; 
+                meshes.forEach((mesh) => {
+                    const dict = mesh.morphTargetDictionary;
+                    const inf = mesh.morphTargetInfluences;
+                    if (!dict || !inf) return;
 
-                const setMorph = (name: string, val: number, speed = 0.2) => {
-                    const idx = dict[name];
-                    if (idx !== undefined) inf[idx] = THREE.MathUtils.lerp(inf[idx], val, speed);
-                };
+                    const setMorph = (name: string, val: number, decaySpeed = 0.3) => {
+                        const idx = dict[name];
+                        if (idx !== undefined) {
+                            const safeVal = Math.max(0, Math.min(1, val));
+                            const currentInf = inf[idx];
+                            
+                            // PRO ANIMATION TRICK: Fast Attack, Slow Decay
+                            // If opening (val > current), snap fast (0.8) to hit the audio cue instantly.
+                            // If closing (val < current), glide smoothly (decaySpeed) to prevent jitter.
+                            const dynamicSpeed = safeVal > currentInf ? 0.8 : decaySpeed;
+                            
+                            inf[idx] = THREE.MathUtils.lerp(currentInf, safeVal, dynamicSpeed);
+                        }
+                    };
 
-                // WAWA STYLE: Smooth, expressive blending
-                const smoothSpeed = 0.5; 
-                const oralVol = currentVol.volume || 0;
-                setMorph('jawOpen', oralVol * 1.5, smoothSpeed);
-                setMorph('mouthOpen', oralVol * 1.0, smoothSpeed);
+                    // 1. Barely use jawOpen so it doesn't stack on top of the precise vowels
+                    setMorph('jawOpen', vol * 0.1, 0.4);
+                    setMorph('mouthOpen', 0, 0.4); 
 
-                // SAFEGUARD: Dynamically map Wawa visemes to the correct GLB blendshape names
-                const mapViseme = (wawaVal: number, vrmName1: string, vrmName2: string) => {
-                    if (dict[vrmName1] !== undefined) setMorph(vrmName1, wawaVal, smoothSpeed);
-                    else if (dict[vrmName2] !== undefined) setMorph(vrmName2, wawaVal, smoothSpeed);
-                };
+                    // 2. Visemes (Bumped intensity to 0.85 for clearer articulation)
+                    const intensity = 0.85;
+                    const decay = 0.4; // Smooth closing speed
 
-                mapViseme(currentVol.a || 0, 'v_aa', 'viseme_aa');
-                mapViseme(currentVol.i || 0, 'v_ih', 'viseme_I');
-                mapViseme(currentVol.u || 0, 'v_ou', 'viseme_U');
-                mapViseme(currentVol.e || 0, 'v_ee', 'viseme_E');
-                mapViseme(currentVol.o || 0, 'v_oh', 'viseme_O');
+                    setMorph('v_aa', (volData.a || 0) * intensity, decay);
+                    setMorph('v_ih', (volData.i || 0) * intensity, decay);
+                    setMorph('v_ou', (volData.u || 0) * intensity, decay);
+                    
+                    // Safety mappings for E and O
+                    if (dict['viseme_aa'] !== undefined) setMorph('viseme_aa', (volData.a || 0) * intensity, decay);
+                    if (dict['viseme_E'] !== undefined) setMorph('viseme_E', (volData.e || 0) * intensity, decay);
+                    if (dict['viseme_O'] !== undefined) setMorph('viseme_O', (volData.o || 0) * intensity, decay);
+                    if (dict['v_ee'] !== undefined) setMorph('v_ee', (volData.e || 0) * intensity, decay);
+                    if (dict['v_oh'] !== undefined) setMorph('v_oh', (volData.o || 0) * intensity, decay);
 
-                const now = performance.now();
-                const blink = (now % 5000) < 150 ? 1 : 0;
-                setMorph('eyeBlinkLeft', blink, 0.5);
-                setMorph('eyeBlinkRight', blink, 0.5);
+                    const now = performance.now();
+                    const blink = (now % 4000) < 150 ? 1 : 0;
+                    setMorph('eyeBlinkLeft', blink, 0.5);
+                    setMorph('eyeBlinkRight', blink, 0.5);
+                });
+
+                // ── Body Dynamic Talk State ──────────────────────
+                const isSpeaking = vol > 0.05;
+                if (isSpeaking && activeAnimNameRef.current === 'idle') {
+                    const next = Math.random() > 0.5 ? 'talking_1' : 'talking_2';
+                    const action = actionsRef.current[next];
+                    if (action && activeActionRef.current) {
+                        action.reset().setEffectiveWeight(1).fadeIn(0.2).play();
+                        activeActionRef.current.fadeOut(0.2);
+                        activeActionRef.current = action;
+                        activeAnimNameRef.current = next;
+                    }
+                } else if (!isSpeaking && activeAnimNameRef.current.startsWith('talking')) {
+                    const idle = actionsRef.current['idle'];
+                    if (idle && activeActionRef.current) {
+                        idle.reset().setEffectiveWeight(1).fadeIn(0.4).play();
+                        activeActionRef.current.fadeOut(0.4);
+                        activeActionRef.current = idle;
+                        activeActionRef.current = idle;
+                        activeAnimNameRef.current = 'idle';
+                    }
+                }
             }
 
             controls.update();
@@ -317,31 +352,6 @@ export default function VRMStage({ personaName, agentVolume, isThinking, agentGe
             activeAnimNameRef.current = agentGesture;
         }
     }, [agentGesture]);
-
-    // Volume
-    useEffect(() => {
-        const vol = agentVolume.volume;
-        const isSpeaking = vol > 0.05;
-
-        if (isSpeaking && activeAnimNameRef.current === 'idle') {
-            const next = Math.random() > 0.5 ? 'talking_1' : 'talking_2';
-            const action = actionsRef.current[next];
-            if (action && activeActionRef.current) {
-                action.reset().setEffectiveWeight(1).fadeIn(0.2).play();
-                activeActionRef.current.fadeOut(0.2);
-                activeActionRef.current = action;
-                activeAnimNameRef.current = next;
-            }
-        } else if (!isSpeaking && activeAnimNameRef.current.startsWith('talking')) {
-            const idle = actionsRef.current['idle'];
-            if (idle && activeActionRef.current) {
-                idle.reset().setEffectiveWeight(1).fadeIn(0.4).play();
-                activeActionRef.current.fadeOut(0.4);
-                activeActionRef.current = idle;
-                activeAnimNameRef.current = 'idle';
-            }
-        }
-    }, [agentVolume.volume]);
 
     return (
         <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>

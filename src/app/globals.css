@@ -14,6 +14,14 @@
 }
 
 /* ── CSS Custom Properties ──────────────────────────────── */
+/* Hide Next.js dev overlay indicator and ALL dev tools purely for clean UI */
+#nextjs-portal, .nextjs-toast-errors-parent, [data-nextjs-dialog-overlay], .nextjs-dev-indicator, [data-next-devtools] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 :root {
   /* Glass colors */
   --glass-bg: rgba(255, 255, 255, 0.06);
@@ -69,6 +77,12 @@
   --shadow-glow-gold: 0 0 30px rgba(212, 168, 83, 0.25);
   --shadow-glow-rose: 0 0 30px rgba(232, 88, 122, 0.25);
   --shadow-glow-violet: 0 0 30px rgba(155, 114, 240, 0.25);
+
+  /* Acid Graphic Palette */
+  --color-acid-green: #cefe00;
+  --color-acid-green-dim: #b0d800;
+  --color-acid-green-glow: rgba(206, 254, 0, 0.4);
+  --font-acid-heading: 'Syne', sans-serif;
 
   /* Transitions */
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
@@ -165,6 +179,56 @@ body {
   opacity: 0.3;
   cursor: not-allowed;
   filter: grayscale(1);
+}
+
+/* ── Acid Graphic Utilities ──────────────────────────────── */
+.grid-background {
+  background-color: #000;
+  background-image: 
+    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+.text-acid {
+  color: var(--color-acid-green);
+}
+
+.btn-brutal {
+  background: var(--color-acid-green);
+  color: #000;
+  padding: 14px 34px;
+  border-radius: 8px; /* Sharp but professional */
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: var(--font-acid-heading);
+}
+
+.btn-brutal:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 30px var(--color-acid-green-glow);
+}
+
+.btn-brutal-outline {
+  background: transparent;
+  color: #f6f4f0;
+  padding: 14px 34px;
+  border-radius: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-brutal-outline:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: #f6f4f0;
 }
 
 /* Call Button - Special Accent */
@@ -389,15 +453,15 @@ body {
 }
 
 .transcript-message.agent {
-  background: rgba(212, 168, 83, 0.06);
-  border-left: 2px solid var(--color-gold);
-  color: var(--text-primary);
+  background: rgba(206, 254, 0, 0.06);
+  border-left: 2px solid var(--color-acid-green);
+  color: var(--color-acid-green);
 }
 
 .transcript-message.user {
-  background: rgba(114, 208, 240, 0.06);
-  border-left: 2px solid var(--color-ice);
-  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.06);
+  border-left: 2px solid rgba(255, 255, 255, 0.4);
+  color: #f6f4f0;
 }
 
 .transcript-role {

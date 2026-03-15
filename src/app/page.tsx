@@ -2,11 +2,9 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 // CameraFeed removed for Sprint 6 Photo Upload Pivot
-import GlassControlBar from '@/components/GlassControlBar';
-import OutfitGallery from '@/components/OutfitGallery';
 import ActiveCallUI from '../components/ActiveCallUI';
 import LandingOverlay, { Persona } from '@/components/LandingOverlay';
-import SplashScreen from '@/components/SplashScreen';
+import ChatPanel from '@/components/ChatPanel';
 import { useSocketConnection } from '@/hooks/useSocketConnection';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
 import { useAudioPlayback, VisemeData } from '@/hooks/useAudioPlayback';
@@ -24,7 +22,7 @@ export default function HomePage() {
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
   const [landingExiting, setLandingExiting] = useState(false);
-  const [splashExited, setSplashExited] = useState(false);
+  const [splashExited, setSplashExited] = useState(true);
   const [outfits, setOutfits] = useState<GeneratedOutfit[]>([]);
   const [thinkingStatus, setThinkingStatus] = useState<string | null>(null);
   const [micEnabled, setMicEnabled] = useState(true);
@@ -34,8 +32,12 @@ export default function HomePage() {
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
   const [garmentPhoto, setGarmentPhoto] = useState<string | null>(null);
   const [userVolume, setUserVolume] = useState(0);
-  const [agentVolume, setAgentVolume] = useState<VisemeData>({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
+  // PERFORMANCE FIX: Use a ref for 60fps viseme data to prevent Parent Component re-renders
+  const agentVolumeRef = useRef<VisemeData>({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
   const [agentGesture, setAgentGesture] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
 
   const messageIdRef = useRef(0);
   const sessionActiveRef = useRef(false);
@@ -47,7 +49,12 @@ export default function HomePage() {
   }, []);
 
   // ── Audio Playback ─────────────────────────────────────
-  const { playChunk, stopPlayback, cleanup: cleanupAudio, initAudio } = useAudioPlayback(setAgentVolume);
+  const { playChunk, stopPlayback, cleanup: cleanupAudio, initAudio } = useAudioPlayback(
+    useCallback((data: VisemeData) => {
+      // Mutate the ref's current object to bridge data to VRMStage without re-rendering page.tsx
+      Object.assign(agentVolumeRef.current, data);
+    }, [])
+  );
 
   // ── Socket Connection ──────────────────────────────────
   const {
@@ -61,10 +68,34 @@ export default function HomePage() {
     requestOutfit,
   } = useSocketConnection({
     onTranscript: (text, role) => {
-      // Transcript is hidden in UI, but we could log it or use it for triggers
-      console.log(`[Transcript] ${role}: ${text}`);
+      console.log(`[Transcript Interface] Received ${role}: "${text}"`);
+      setMessages(prev => [...prev, {
+        id: `msg-${Date.now()}`,
+        text,
+        role,
+        timestamp: Date.now()
+      }]);
     },
-    onGeneratedOutfit: (imageBase64, caption) => addOutfit(imageBase64, caption),
+    onGeneratedOutfit: (imageBase64, caption) => {
+      addOutfit(imageBase64, caption);
+      // ADD IMAGE TO CHAT
+      setMessages(prev => [...prev, {
+        id: `img-${Date.now()}`,
+        text: caption,
+        role: 'agent',
+        imageBase64: imageBase64 || undefined,
+        timestamp: Date.now()
+      }]);
+    },
+    onThought: (text) => {
+      setMessages(prev => {
+        const last = prev[prev.length - 1];
+        if (last && last.role === 'agent' && !last.imageBase64) {
+          return [...prev.slice(0, -1), { ...last, thought: (last.thought || '') + text }];
+        }
+        return [...prev, { id: `thought-${Date.now()}`, role: 'agent', text: '', thought: text, timestamp: Date.now() }];
+      });
+    },
     onThinking: (status) => setThinkingStatus(status || null),
     onSessionStarted: () => setSessionReady(true),
     onError: (msg) => console.error(`[Agent Error] ${msg}`),
@@ -212,21 +243,34 @@ export default function HomePage() {
     [sendGarmentPhoto, sendText]
   );
 
-  // Outfit generation request
-  const handleRequestOutfit = useCallback(
-    (prompt: string) => {
-      requestOutfit(
-        prompt,
-        mode === 'stylist' ? 'Virtual Try-On' : 'Haute Couture Sketch',
-        mode === 'stylist' ? 'Fit strictly to the user\'s body type in the frame' : 'Avant-garde artistic vision'
-      );
-    },
-    [requestOutfit, mode]
-  );
+  const handleSendMessage = useCallback((text: string) => {
+    console.log(`[Chat Event] User sending message: "${text}"`);
+    sendText(text);
+    setMessages(prev => [...prev, {
+      id: `msg-${Date.now()}`,
+      text,
+      role: 'user',
+      timestamp: Date.now()
+    }]);
+  }, [sendText]);
 
-  if (!splashExited) {
-    return <SplashScreen onEnter={() => setSplashExited(true)} />;
-  }
+  // ── Text Only Mode Audio Management ──────────────
+  useEffect(() => {
+    if (isChatExpanded) {
+      // Text Only Mode: Stop and cleanup audio
+      stopPlayback();
+      cleanupAudio();
+      stopCapture();
+      setMicEnabled(false);
+    } else if (sessionActive) {
+      // Return to Voice Mode: Re-init and start capture
+      initAudio();
+      setMicEnabled(true);
+      startCapture();
+    }
+  }, [isChatExpanded, sessionActive, stopPlayback, cleanupAudio, stopCapture, initAudio, startCapture]);
+
+  // SplashScreen logic removed for Zaute Rebrand
 
   return (
     <main className="app-container">
@@ -247,60 +291,76 @@ export default function HomePage() {
         <div className="ui-layer">
           <header className="top-bar">
             <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '0.8rem' }}>
-              <span className="brand-name" style={{ fontFamily: 'Supercharge, var(--font-serif)', fontSize: '1.4rem', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase' }}>
-                HAUTE COUTURE
-              </span>
+              <img 
+                src="/zaute-logo-v2.png" 
+                alt="ZAUTE" 
+                style={{ height: '28px', objectFit: 'contain' }} 
+              />
             </div>
           </header>
 
           <div className="main-content" style={{
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '2rem',
-            minHeight: 'calc(100vh - 160px)'
+            display: 'flex',
+            flexDirection: 'row',
+            width: '100%',
+            height: 'calc(100vh - 80px)', // adjust for top-bar
+            position: 'relative',
+            overflow: 'hidden'
           }}>
-            {activePersona && (
-              <div className="video-call-box">
-                <ActiveCallUI
-                  persona={activePersona}
-                  isThinking={!!thinkingStatus}
-                  sessionReady={sessionReady}
-                  agentVolume={agentVolume}
-                  agentGesture={agentGesture}
-                />
-              </div>
-            )}
+            {/* Left: 3D Scene (Full Width) - HIDDEN in Text Only Mode */}
+            <div style={{
+              width: '100%',
+              height: '100%',
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              display: isChatExpanded ? 'none' : 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {activePersona && (
+                <div className="video-call-box" style={{ width: '100%', height: '100%' }}>
+                  <ActiveCallUI
+                    persona={activePersona}
+                    isThinking={!!thinkingStatus}
+                    sessionReady={sessionReady}
+                    agentVolumeRef={agentVolumeRef}
+                    agentGesture={agentGesture}
+                    onEndSession={handleEndSession}
+                  />
+                </div>
+              )}
+            </div>
 
-            <div className="gallery-section hearts-atelier-panel" style={{
+            {/* Right: Chat Panel (Overlay) */}
+            <div style={{
+              width: isChatExpanded ? '100%' : '440px',
+              height: '100%',
+              transition: 'all 0.4s var(--ease-out-expo)',
+              zIndex: 30,
               position: 'absolute',
               right: 0,
-              top: 0,
-              width: '400px',
-              height: '100vh',
-              overflowY: 'auto',
-              zIndex: 20,
-              display: outfits.length > 0 ? 'block' : 'none',
-              background: 'rgba(28, 30, 34, 0.98)',
-              borderRadius: '32px 0 0 32px',
-              borderLeft: '1px solid rgba(212, 168, 83, 0.2)',
-              padding: '4rem 1.5rem 2rem 1.5rem', /* Push content down safely from viewport top */
-              boxShadow: '-10px 0 40px rgba(0,0,0,0.5)',
-              backdropFilter: 'blur(20px)'
+              top: 0
             }}>
-              <OutfitGallery outfits={outfits} />
+              <ChatPanel
+                 messages={messages}
+                 onSendMessage={handleSendMessage}
+                 isOpen={isChatOpen}
+                 onToggle={() => setIsChatOpen(!isChatOpen)}
+                 isExpanded={isChatExpanded}
+                 onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
+                 personaName={activePersona?.name}
+                 canTryOn={!!userPhoto}
+                 micEnabled={micEnabled}
+                 onToggleMic={handleToggleMic}
+                 onUploadPhoto={handleUserPhoto}
+                 onTryFit={handleGarmentPhoto}
+                 onEndSession={handleEndSession}
+                 onRequestStudioEdit={() => {}} // Placeholder if needed
+              />
             </div>
-          </div>
 
-          <GlassControlBar
-            micEnabled={micEnabled}
-            onToggleMic={handleToggleMic}
-            onEndSession={handleEndSession}
-            canTryOn={!!userPhoto}
-            onUploadPhoto={handleUserPhoto}
-            onTryOnItem={handleGarmentPhoto}
-            hideTryOn={activePersona?.id === 'aria'}
-          />
+          </div>
         </div>
       )}
 

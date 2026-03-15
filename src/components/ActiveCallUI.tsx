@@ -12,28 +12,45 @@ interface ActiveCallUIProps {
     isThinking: boolean;
     sessionReady: boolean;
     userVolume?: number;
-    agentVolume?: VisemeData;
+    agentVolumeRef: React.MutableRefObject<VisemeData>;
     agentGesture?: string | null;
+    onEndSession?: () => void;
 }
 
 export default function ActiveCallUI({
     persona,
     isThinking,
     sessionReady,
-    agentVolume = { volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 },
-    agentGesture = null
+    agentVolumeRef,
+    agentGesture = null,
+    onEndSession
 }: ActiveCallUIProps) {
     return (
-        <div className="active-call-ui">
+        <div className="active-call-ui" style={{ position: 'relative', width: '100%', height: '100%' }}>
+            {/* Back Button Overlay */}
+            <button 
+                onClick={onEndSession}
+                style={{
+                position: 'fixed', top: '2rem', left: '2rem', zIndex: 1000,
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(30px)', color: '#fff', borderRadius: '12px',
+                padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '12px',
+                cursor: 'pointer', fontSize: '1rem', fontWeight: 600, fontFamily: "'Inter', sans-serif",
+                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+            }}>
+                <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>‹</span> Back
+            </button>
+
             {/* 3D VRM Stage replacing 2D puppets. The CSS makes this fullscreen behind the UI. */}
             <div className="vrm-stage-wrapper" style={{
-                opacity: sessionReady ? 1 : 0,
-                transition: 'opacity 1s ease-in-out',
-                pointerEvents: 'auto'
+                opacity: 1,
+                pointerEvents: 'auto',
+                width: '100%', height: '100%'
             }}>
                 <VRMStage
                     personaName={persona.name}
-                    agentVolume={agentVolume}
+                    agentVolumeRef={agentVolumeRef}
                     isThinking={isThinking}
                     agentGesture={agentGesture}
                 />

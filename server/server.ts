@@ -88,6 +88,9 @@ io.on('connection', (socket) => {
         onTranscript: (text: string, role: 'agent' | 'user') => {
             socket.emit('transcript', { text, role, timestamp: Date.now() });
         },
+        onThought: (text: string) => {
+            socket.emit('agent-thought', { text, timestamp: Date.now() });
+        },
         onGeneratedOutfit: (imageBase64: string | null, caption: string) => {
             socket.emit('generated-outfit', { imageBase64, caption, timestamp: Date.now() });
         },

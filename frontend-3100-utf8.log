@@ -1,0 +1,35 @@
+﻿Ôû▓ Next.js 16.1.6 (Turbopack)
+- Local:         http://localhost:3100
+- Network:       http://172.16.5.39:3100
+- Environments: .env.local
+
+Ô£ô Starting...
+node.exe : Ô¿» Unable 
+to acquire lock at C:\U
+sers\edogu\Downloads\pr
+ograde-quasar\prograde-
+quasar\.next\dev\lock, 
+is another instance of 
+next dev running?
+At line:1 char:1
++ & "C:\Program 
+Files\nodejs/node.exe" 
+"C:\Program 
+Files\nodejs/node_mo 
+...
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (Ô¿» Unable to   
+  a...xt dev runnin    
+g?:String) [], Rem    
+oteException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+  Suggestion: If you intended to restart next dev, terminate the other process, and then try again.
+[?25h
