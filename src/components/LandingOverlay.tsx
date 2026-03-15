@@ -95,7 +95,7 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                 pointerEvents: 'none'
             }}>
                 <div style={{ pointerEvents: 'auto' }}>
-                    <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '64px', opacity: 1 }} />
+                    <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '90px', opacity: 1 }} />
                 </div>
                 
                 <div style={{
@@ -183,7 +183,7 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                         marginBottom: '16px',
                         letterSpacing: '-0.02em'
                     }}>
-                        A research-led design archive exploring the intersection of biological form and industrial precision.
+                        Meet Zaute. Your AI fashion confidant. Talk trends, find your spark, and build your next look. It’s the future of getting dressed, simplified!
                     </p>
 
                     <button 
@@ -329,7 +329,6 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                     gap: '40px',
                     textAlign: 'center'
                 }}>
-                    <div style={{ position: 'absolute', top: '40px', left: '40px', fontSize: '24px' }}>☆</div>
                     <h2 style={{
                         fontFamily: 'var(--font-acid-heading)',
                         fontSize: 'clamp(2.5rem, 8vw, 5rem)',

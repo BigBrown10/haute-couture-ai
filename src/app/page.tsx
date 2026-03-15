@@ -294,7 +294,7 @@ export default function HomePage() {
               <img 
                 src="/zaute-logo-v2.png" 
                 alt="ZAUTE" 
-                style={{ height: '28px', objectFit: 'contain' }} 
+                style={{ height: '42px', objectFit: 'contain' }} 
               />
             </div>
           </header>
