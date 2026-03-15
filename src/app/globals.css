@@ -3,7 +3,7 @@
    A futuristic, immersive fashion styling platform.
    ============================================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400;1,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,200;0,6..72,300;0,6..72,400;1,6..72,200;1,6..72,300;1,6..72,400&display=swap');
 
 @font-face {
   font-family: 'Supercharge';
@@ -23,73 +23,32 @@
 }
 
 :root {
-  /* Glass colors */
-  --glass-bg: rgba(255, 255, 255, 0.06);
-  --glass-bg-hover: rgba(255, 255, 255, 0.10);
-  --glass-bg-active: rgba(255, 255, 255, 0.14);
-  --glass-border: rgba(255, 255, 255, 0.12);
-  --glass-border-bright: rgba(255, 255, 255, 0.22);
-  --glass-blur: 20px;
-  --glass-blur-heavy: 40px;
-
-  /* Palette */
-  --color-gold: #d4a853;
-  --color-gold-bright: #f0c97a;
-  --color-gold-dim: #a07d3a;
-  --color-rose: #e8587a;
-  --color-rose-dim: #c44060;
-  --color-violet: #9b72f0;
-  --color-violet-dim: #7b52d0;
-  --color-ice: #72d0f0;
-  --color-ice-dim: #52aacf;
-  --color-danger: #ff4d6a;
-  --color-success: #4dff91;
-
-  /* Neutrals */
-  --bg-dark: #0a0a0f;
-  --bg-surface: #12121a;
-  --text-primary: #f5f5f7;
-  --text-secondary: rgba(245, 245, 247, 0.6);
-  --text-muted: rgba(245, 245, 247, 0.35);
+  /* Avant-Garde Core Palette */
+  --bg-avant-black: #0C0A09;
+  --bg-warm-charcoal: #1C1917;
+  --bg-stone-deep: #1c1917;
+  --color-acid-lime: #D4F268;
+  --text-stone: #E7E5E4;
+  --text-stone-muted: rgba(231, 229, 228, 0.6);
+  
+  /* Glass tokens (preserved/adapted) */
+  --glass-bg: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-blur: 8px;
 
   /* Typography */
-  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-serif: 'Newsreader', serif;
+  --font-sans: 'Instrument Sans', sans-serif;
+  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, monospace;
 
-  /* Spacing */
-  --space-xs: 4px;
-  --space-sm: 8px;
-  --space-md: 16px;
-  --space-lg: 24px;
-  --space-xl: 32px;
-  --space-2xl: 48px;
-  --space-3xl: 64px;
-
-  /* Radii */
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 20px;
-  --radius-xl: 28px;
+  /* Spacing & Radii */
+  --space-unit: 8px;
+  --radius-lg: 24px;
   --radius-full: 9999px;
 
-  /* Shadows */
-  --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.06);
-  --shadow-glow-gold: 0 0 30px rgba(212, 168, 83, 0.25);
-  --shadow-glow-rose: 0 0 30px rgba(232, 88, 122, 0.25);
-  --shadow-glow-violet: 0 0 30px rgba(155, 114, 240, 0.25);
-
-  /* Acid Graphic Palette */
-  --color-acid-green: #cefe00;
-  --color-acid-green-dim: #b0d800;
-  --color-acid-green-glow: rgba(206, 254, 0, 0.4);
-  --font-acid-heading: 'Syne', sans-serif;
-
   /* Transitions */
-  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
-  --duration-fast: 150ms;
+  --ease-editorial: cubic-bezier(0.4, 0, 0.2, 1);
   --duration-normal: 300ms;
-  --duration-slow: 600ms;
 }
 
 /* ── Reset & Globals ────────────────────────────────────── */
@@ -109,12 +68,25 @@ html {
 
 body {
   font-family: var(--font-sans);
-  background: var(--bg-dark);
-  color: var(--text-primary);
+  background: var(--bg-avant-black);
+  color: var(--text-stone);
   overflow-x: hidden;
   width: 100vw;
   min-height: 100dvh;
   position: relative;
+}
+
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 9999;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  mix-blend-mode: overlay;
 }
 
 /* ── Glassmorphism Utilities ────────────────────────────── */

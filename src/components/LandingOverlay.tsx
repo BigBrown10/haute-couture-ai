@@ -1,5 +1,8 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import RotatingHeroText from './RotatingHeroText';
+import SerratedDivider from './SerratedDivider';
+import StickyNote from './StickyNote';
+import CatalogLabel from './CatalogLabel';
 
 export type PersonaId = 'despina' | 'gina' | 'tony' | 'aria';
 
@@ -18,7 +21,7 @@ export const PERSONAS: Persona[] = [
         id: 'despina',
         name: 'Despina',
         specialty: 'Chic Parisian Stylist',
-        description: 'Effortlessly chic and sharp. She is the sophisticated older sister you always wanted. She will be honest about your fit but only because she wants you to look like a million bucks.',
+        description: 'Effortlessly chic and sharp. She is the sophisticated older sister you always wanted.',
         image: '/avatars/despina.png',
         voice: 'Kore',
         mode: 'stylist'
@@ -27,27 +30,27 @@ export const PERSONAS: Persona[] = [
         id: 'tony',
         name: 'Tony',
         specialty: 'Streetwear Expert',
-        description: 'The effortlessly cool brother who knows every drop. He focuses on drip, proportions, and making sure your streetwear game is untouchable.',
+        description: 'The effortlessly cool brother who knows every drop.',
         image: '/avatars/tony.png',
-        voice: 'Puck', // Puck is male
+        voice: 'Puck',
         mode: 'stylist'
     },
     {
         id: 'gina',
         name: 'Gina',
         specialty: 'Your Glam Bestie',
-        description: 'Bubbly, energetic, and your biggest hype woman! She specialize in making sure you look absolutely stunning for any event, from prom to the red carpet.',
+        description: 'Bubbly, energetic, and your biggest hype woman!',
         image: '/avatars/gina.png',
-        voice: 'Aoede', // Aoede is female
+        voice: 'Aoede',
         mode: 'stylist'
     },
     {
         id: 'aria',
         name: 'Aria',
         specialty: '3D AI Designer',
-        description: 'Sophisticated, precise, and visionary. Aria translates your wildest design concepts into pure, high-fidelity sketches and patterns. She is a peer for designers and a mentor for tailors.',
+        description: 'Sophisticated, precise, and visionary AI Designer.',
         image: '/avatars/Aria.png',
-        voice: 'Aoede', // Aoede is female instead of Charon (male)
+        voice: 'Aoede',
         mode: 'designer'
     }
 ];
@@ -58,162 +61,338 @@ interface LandingOverlayProps {
 }
 
 export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps) {
-    const [selectedId, setSelectedId] = useState<PersonaId>('despina');
-    const [showHero, setShowHero] = useState(true);
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-    const selectedPersona = PERSONAS.find(p => p.id === selectedId)!;
+    const scrollToSection = (id: string) => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    };
 
     return (
-        <div className={`landing-overlay grid-background ${exiting ? 'exiting' : ''}`} style={{
+        <div className={`landing-overlay ${exiting ? 'exiting' : ''}`} style={{
             position: 'fixed',
             inset: 0,
             zIndex: 1000,
-            display: 'flex',
-            flexDirection: 'column',
+            background: 'var(--bg-avant-black)',
+            color: 'var(--text-stone)',
             overflowY: 'auto',
-            background: '#000'
-        }}>
-            {/* Top Navigation Bar */}
-            <div className="top-nav-bar" style={{
-                padding: '2rem 4rem',
+            scrollBehavior: 'smooth'
+        }} ref={scrollContainerRef}>
+            
+            {/* Top Navigation Bar - Center Pill */}
+            <nav style={{
+                position: 'fixed',
+                top: '24px',
+                left: 0,
+                right: 0,
                 display: 'flex',
                 justifyContent: 'space-between',
                 alignItems: 'center',
-                zIndex: 100,
-                flexShrink: 0
+                padding: '0 40px',
+                zIndex: 1100,
+                pointerEvents: 'none'
             }}>
-                <div className="nav-logo">
-                    <img 
-                        src="/zaute-logo-v2.png" 
-                        alt="ZAUTE" 
-                        style={{ height: '32px', objectFit: 'contain' }} 
-                    />
+                <div style={{ pointerEvents: 'auto' }}>
+                    <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '24px' }} />
                 </div>
-                <div className="nav-menu" style={{ display: 'flex', gap: '2rem' }}>
-                    <button className="nav-link" style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.9rem', cursor: 'pointer', opacity: 0.6 }}>Home</button>
-                    <button className="nav-link" style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.9rem', cursor: 'pointer', opacity: 0.6 }}>Our Stylists</button>
-                    <button className="nav-link" style={{ background: 'none', border: 'none', color: '#fff', fontSize: '0.9rem', cursor: 'pointer', opacity: 0.6 }}>About</button>
-                </div>
-            </div>
-
-            {showHero ? (
-                /* Stage 1: Brutal Hero */
+                
                 <div style={{
-                    flex: 1,
                     display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    paddingBottom: '5rem'
+                    background: 'rgba(231, 229, 228, 0.05)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    padding: '6px',
+                    borderRadius: '999px',
+                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    pointerEvents: 'auto'
                 }}>
-                    <RotatingHeroText />
+                    {['Journal', 'Curations', 'Studio', 'Archive'].map(link => (
+                        <button key={link} style={{
+                            background: 'none',
+                            border: 'none',
+                            color: 'var(--text-stone)',
+                            padding: '10px 24px',
+                            fontSize: '14px',
+                            fontWeight: 500,
+                            borderRadius: '999px',
+                            cursor: 'pointer',
+                            transition: 'all 300ms var(--ease-editorial)',
+                        }} className="nav-btn-hover">
+                            {link}
+                        </button>
+                    ))}
+                </div>
 
-                    <div style={{ display: 'flex', gap: '1.5rem', marginTop: '2rem' }}>
-                        <button 
-                            className="btn-brutal"
-                            onClick={() => setShowHero(false)}
-                        >
-                            Start Styling →
-                        </button>
-                        <button className="btn-brutal-outline">
-                            See how it works ○
-                        </button>
+                <div style={{ pointerEvents: 'auto' }}>
+                    <button style={{
+                        background: 'var(--color-acid-lime)',
+                        color: 'var(--bg-avant-black)',
+                        padding: '12px 28px',
+                        borderRadius: '999px',
+                        fontWeight: 600,
+                        fontSize: '14px',
+                        border: 'none',
+                        cursor: 'pointer'
+                    }} onClick={() => scrollToSection('designer-selection')}>
+                        Inquire Now
+                    </button>
+                </div>
+            </nav>
+
+            {/* SECTION 1: HERO */}
+            <section id="hero" style={{
+                minHeight: '100vh',
+                display: 'grid',
+                gridTemplateColumns: '5fr 7fr',
+                padding: '140px 40px 60px',
+                gap: '80px',
+                position: 'relative'
+            }}>
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ marginBottom: '40px' }}>
+                        <RotatingHeroText />
+                    </div>
+                    
+                    <p style={{ 
+                        fontSize: '1.25rem', 
+                        opacity: 0.6, 
+                        maxWidth: '480px', 
+                        lineHeight: 1.5,
+                        marginBottom: '60px'
+                    }}>
+                        A research-led design archive exploring the intersection of biological form and industrial precision.
+                    </p>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <div style={{ display: 'flex' }}>
+                            {[1, 2, 3].map(i => (
+                                <div key={i} style={{
+                                    width: '40px',
+                                    height: '40px',
+                                    borderRadius: '50%',
+                                    background: '#292524',
+                                    border: '2px solid var(--bg-avant-black)',
+                                    marginLeft: i === 1 ? 0 : '-12px',
+                                    overflow: 'hidden'
+                                }}>
+                                    <img src={`/avatars/${i === 1 ? 'despina' : i === 2 ? 'tony' : 'gina'}.png`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(1)' }} />
+                                </div>
+                            ))}
+                        </div>
+                        <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', opacity: 0.5 }}>TRUSTED BY 14K+ OBSERVERS</span>
                     </div>
                 </div>
-            ) : (
-                /* Stage 2: Persona Selection */
-                <div className="landing-content-wide" style={{
-                    flex: 1,
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '2rem'
-                }}>
-                    <h2 style={{
-                        fontFamily: 'var(--font-acid-heading)',
-                        fontSize: '3rem',
-                        color: 'var(--color-acid-green)',
-                        marginBottom: '4rem',
-                        textTransform: 'uppercase',
-                        fontWeight: 800
-                    }}>
-                        Select your stylist
-                    </h2>
-                    <div className="avatars-container" style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                        gap: '2.5rem',
+
+                <div style={{ position: 'relative', height: '100%', minHeight: '600px' }}>
+                    <div style={{
                         width: '100%',
-                        maxWidth: '1200px'
+                        height: '100%',
+                        borderRadius: '10rem 10rem 24px 24px',
+                        overflow: 'hidden',
+                        position: 'relative',
+                        background: '#1C1917'
                     }}>
-                        {PERSONAS.map(persona => (
-                            <div
-                                key={persona.id}
-                                className={`avatar-card`}
-                                onClick={() => onStart(persona)}
-                                style={{
-                                    cursor: 'pointer',
-                                    transition: 'all 0.3s var(--ease-out-expo)',
-                                    borderRadius: '16px',
-                                    border: '1px solid rgba(255,255,255,0.1)',
-                                    background: 'rgba(255,255,255,0.03)',
-                                    overflow: 'hidden',
-                                    position: 'relative'
-                                }}
-                            >
+                        <img 
+                            src="https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=2072&auto=format&fit=crop" 
+                            alt="Editorial" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }}
+                        />
+                        <CatalogLabel id="B4A-X" />
+                        <div style={{ position: 'absolute', bottom: '16px', right: '16px', color: 'var(--text-stone)', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
+                             SYNTHESIZED NEURAL STRUCTURE
+                        </div>
+                    </div>
+                    
+                    <div style={{ position: 'absolute', top: '-20px', right: '-20px' }}>
+                        <StickyNote 
+                            title="Volume 01" 
+                            description="Now curated — The architectural silhouettes of Autumn/Winter."
+                            ctaText="Inquire Now"
+                            rotation={6}
+                        />
+                    </div>
+                </div>
+            </section>
+
+            <SerratedDivider position="bottom" />
+
+            {/* SECTION 2: DESIGNER SELECTION */}
+            <section id="designer-selection" style={{
+                padding: '120px 40px',
+                background: 'var(--bg-warm-charcoal)',
+                minHeight: '100vh'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '80px' }}>
+                    <h2 style={{
+                        fontFamily: 'var(--font-serif)',
+                        fontSize: '4.5rem',
+                        fontWeight: 300,
+                        margin: 0
+                    }}>
+                        Select your <i style={{ fontWeight: 200 }}>Designer</i>
+                    </h2>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', opacity: 0.4, letterSpacing: '0.2em' }}>
+                        VIEWING ARCHIVE 001 - 004
+                    </div>
+                </div>
+
+                <div style={{ 
+                    display: 'flex', 
+                    gap: '32px', 
+                    overflowX: 'auto', 
+                    paddingBottom: '40px',
+                    scrollbarWidth: 'none',
+                    msOverflowStyle: 'none'
+                }} className="hide-scrollbar">
+                    {PERSONAS.map((persona, idx) => (
+                        <div key={persona.id} style={{
+                            flex: '0 0 420px',
+                            cursor: 'pointer',
+                            position: 'relative',
+                            transition: 'transform 400ms var(--ease-editorial)',
+                            marginTop: idx % 2 === 0 ? '40px' : '0'
+                        }} className="card-hover-scale" onClick={() => onStart(persona)}>
+                            <div style={{
+                                width: '100%',
+                                aspectRatio: '3/4',
+                                borderRadius: '24px',
+                                overflow: 'hidden',
+                                background: '#292524',
+                                position: 'relative',
+                                border: '1px solid rgba(255, 255, 255, 0.05)'
+                            }}>
                                 <img 
                                     src={persona.image} 
                                     alt={persona.name} 
-                                    style={{ width: '100%', height: '400px', objectFit: 'cover', opacity: 0.8 }} 
+                                    style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        objectFit: 'cover', 
+                                        transition: 'all 500ms var(--ease-editorial)'
+                                    }} 
+                                    className="grayscale-to-color"
                                 />
-
-                                <div style={{
-                                    position: 'absolute',
-                                    bottom: 0,
-                                    left: 0,
-                                    right: 0,
-                                    padding: '2rem',
-                                    background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)'
-                                }}>
-                                    <h3 style={{
-                                        fontSize: '2rem',
-                                        fontFamily: 'var(--font-acid-heading)',
-                                        color: 'var(--color-acid-green)',
-                                        margin: 0,
-                                        fontWeight: 900
-                                    }}>
-                                        {persona.name.toUpperCase()}
-                                    </h3>
-                                    <p style={{
-                                        fontSize: '0.8rem',
-                                        color: 'rgba(255,255,255,0.6)',
-                                        textTransform: 'uppercase',
-                                        letterSpacing: '0.1em',
-                                        marginTop: '0.5rem'
-                                    }}>
-                                        {persona.specialty}
-                                    </p>
-                                    
-                                    <button 
-                                        className="btn-brutal" 
-                                        style={{ 
-                                            width: '100%', 
-                                            marginTop: '1.5rem', 
-                                            padding: '10px', 
-                                            fontSize: '0.8rem',
-                                            background: '#fff',
-                                            color: '#000'
-                                        }}
-                                    >
-                                        Initialize Session →
-                                    </button>
-                                </div>
+                                <CatalogLabel id={`00${idx + 1}`} />
                             </div>
-                        ))}
+                            <div style={{ marginTop: '24px' }}>
+                                <h3 style={{ 
+                                    fontFamily: 'var(--font-serif)', 
+                                    fontSize: '2rem', 
+                                    fontWeight: 300, 
+                                    margin: 0 
+                                }}>
+                                    {persona.name} <i style={{ fontWeight: 200 }}>Study</i>
+                                </h3>
+                                <p style={{ 
+                                    fontFamily: 'var(--font-mono)', 
+                                    fontSize: '11px', 
+                                    opacity: 0.4, 
+                                    textTransform: 'uppercase', 
+                                    marginTop: '8px',
+                                    letterSpacing: '0.1em'
+                                }}>
+                                    SERIES 01 — {persona.specialty}
+                                </p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <SerratedDivider position="top" />
+
+            {/* SECTION 3: FINAL CTA */}
+            <section style={{
+                padding: '120px 40px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                background: 'var(--bg-avant-black)'
+            }}>
+                <div style={{
+                    width: '100%',
+                    maxWidth: '1200px',
+                    background: 'var(--color-acid-lime)',
+                    borderRadius: '48px',
+                    padding: '100px 80px',
+                    position: 'relative',
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-start',
+                    gap: '40px'
+                }}>
+                    <div style={{ position: 'absolute', top: '40px', left: '40px', fontSize: '2rem' }}>☆</div>
+                    <h2 style={{
+                        fontFamily: 'var(--font-serif)',
+                        fontSize: '5rem',
+                        color: 'var(--bg-avant-black)',
+                        lineHeight: 1.1,
+                        margin: 0,
+                        maxWidth: '800px',
+                        fontWeight: 300
+                    }}>
+                        Ready to <i style={{ fontWeight: 200 }}>redefine</i> the digital landscape?
+                    </h2>
+                    
+                    <p style={{
+                        fontSize: '1.25rem',
+                        color: 'rgba(12, 10, 9, 0.7)',
+                        maxWidth: '600px',
+                        lineHeight: 1.5,
+                        marginTop: '20px'
+                    }}>
+                        We are opening our private studio for 2024 collaborations. Join a network of observers focused on pure aesthetic utility.
+                    </p>
+
+                    <div style={{ 
+                        width: '100%', 
+                        height: '1px', 
+                        background: 'rgba(12, 10, 9, 0.1)', 
+                        margin: '20px 0' 
+                    }} />
+
+                    <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <button style={{
+                            background: 'var(--bg-avant-black)',
+                            color: 'var(--color-acid-lime)',
+                            padding: '20px 48px',
+                            borderRadius: '999px',
+                            border: 'none',
+                            fontSize: '14px',
+                            fontWeight: 700,
+                            letterSpacing: '0.1em',
+                            cursor: 'pointer',
+                            textTransform: 'uppercase'
+                        }} onClick={() => scrollToSection('designer-selection')}>
+                            Submit Application
+                        </button>
+                        
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(12, 10, 9, 0.4)', textTransform: 'uppercase' }}>
+                            NEXT INTAKE: OCTOBER 15TH, 2024
+                        </div>
                     </div>
                 </div>
-            )}
+            </section>
+
+            <style jsx>{`
+                .nav-btn-hover:hover {
+                    background: rgba(231, 229, 228, 0.1) !important;
+                }
+                .card-hover-scale:hover {
+                    transform: translateY(-20px);
+                }
+                .card-hover-scale:hover .grayscale-to-color {
+                    filter: grayscale(0) !important;
+                    transform: scale(1.05);
+                }
+                .grayscale-to-color {
+                    filter: grayscale(1);
+                }
+                .hide-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+            `}</style>
         </div>
     );
 }
