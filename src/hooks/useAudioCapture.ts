@@ -40,7 +40,14 @@ export function useAudioCapture(onAudioChunk: (base64: string) => void, onVolume
             analyser.fftSize = 256;
             analyserRef.current = analyser;
 
+            // Guard: check if we've been stopped during stream acquisition
+            if (audioContextRef.current !== audioContext) return;
+
             await audioContext.audioWorklet.addModule('/audio-worklet-processor.js');
+
+            // Guard: check again after dynamic module loading
+            if (audioContextRef.current !== audioContext) return;
+            if (audioContext.state === 'suspended') await audioContext.resume();
 
             const source = audioContext.createMediaStreamSource(stream);
             const workletNode = new AudioWorkletNode(audioContext, 'pcm-capture-processor');
