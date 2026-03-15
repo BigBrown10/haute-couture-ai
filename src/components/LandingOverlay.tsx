@@ -51,7 +51,7 @@ export const PERSONAS: Persona[] = [
         name: 'Aria',
         specialty: '3D AI Designer',
         description: 'Sophisticated, precise, and visionary AI Designer.',
-        image: '/avatars/Aria.png',
+        image: '/avatars/aria.png',
         voice: 'Aoede',
         mode: 'designer'
     }
