@@ -224,7 +224,7 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
       setMicEnabled(true);
       startCapture();
     }
-  }, [isChatExpanded, stopPlayback, cleanupAudio, stopCapture, initAudio, startCapture]);
+  }, [isChatExpanded, stopPlayback, cleanup, stopCapture, initAudio, startCapture]);
 
   if (!activePersona) return null;
 
