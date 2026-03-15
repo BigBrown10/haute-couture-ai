@@ -34,7 +34,7 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
             }
         }
 
-        const ls = lipsyncRef.current;
+        const ls = lipsyncRef.current as any;
         if (ls && ls.audioContext.state === 'suspended') {
             ls.audioContext.resume();
         }
@@ -44,7 +44,7 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
     const playChunk = useCallback((audioBase64: string) => {
         try {
             const ctx = getContext();
-            const ls = lipsyncRef.current;
+            const ls = lipsyncRef.current as any;
             if (!ctx || !ls) return;
 
             const binaryStr = atob(audioBase64);
@@ -142,7 +142,7 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
 
     const cleanup = useCallback(() => {
         stopPlayback();
-        const ls = lipsyncRef.current;
+        const ls = lipsyncRef.current as any;
         if (ls && ls.audioContext) {
             ls.audioContext.close().catch(() => { });
         }
