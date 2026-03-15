@@ -1,6 +1,6 @@
 'use client';
 
-import { Persona } from './LandingOverlay';
+import { Persona } from '@/lib/agents';
 import VRMStage from './VRMStage';
 import { VisemeData } from '@/hooks/useAudioPlayback';
 
