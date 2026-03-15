@@ -1,45 +1,30 @@
-/* ============================================================
-   ProjectHauteCouture — Glassmorphism Design System
-   A futuristic, immersive fashion styling platform.
-   ============================================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,200;0,6..72,300;0,6..72,400;1,6..72,200;1,6..72,300;1,6..72,400&display=swap');
-
-@font-face {
-  font-family: 'Supercharge';
-  src: url('/fonts/Supercharge.otf') format('opentype');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
-}
+@import url('https://api.fontshare.com/v2/css?f[]=clash-grotesk@200,300,400,500,600,700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
 
 /* ── CSS Custom Properties ──────────────────────────────── */
-/* Hide Next.js dev overlay indicator and ALL dev tools purely for clean UI */
-#nextjs-portal, .nextjs-toast-errors-parent, [data-nextjs-dialog-overlay], .nextjs-dev-indicator, [data-next-devtools] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-}
-
 :root {
   /* Avant-Garde Core Palette */
-  --bg-avant-black: #0C0A09;
-  --bg-warm-charcoal: #1C1917;
-  --bg-stone-deep: #1c1917;
-  --color-acid-lime: #D4F268;
+  --bg-avant-black: #060606;
+  --bg-warm-charcoal: #060606;
+  --bg-stone-deep: #060606;
+  --color-acid-lime: #CEFE00;
   --text-stone: #E7E5E4;
   --text-stone-muted: rgba(231, 229, 228, 0.6);
   
-  /* Glass tokens (preserved/adapted) */
+  /* Glass tokens */
   --glass-bg: rgba(255, 255, 255, 0.05);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-blur: 8px;
 
-  /* Typography */
-  --font-serif: 'Newsreader', serif;
-  --font-sans: 'Instrument Sans', sans-serif;
-  --font-mono: ui-monospace, 'Cascadia Code', 'Source Code Pro', Menlo, Monaco, Consolas, monospace;
+  /* Typography overhaul */
+  --font-serif: 'Clash Grotesk', sans-serif;
+  --font-sans: 'JetBrains Mono', monospace;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Massive / Bold / Tight aesthetic */
+  --heading-weight: 700;
+  --heading-tracking: -0.04em;
+  --heading-line-height: 0.9;
 
   /* Spacing & Radii */
   --space-unit: 8px;
@@ -49,6 +34,27 @@
   /* Transitions */
   --ease-editorial: cubic-bezier(0.4, 0, 0.2, 1);
   --duration-normal: 300ms;
+}
+
+/* ── Marquee Animation ───────────────────────────────────── */
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+.animate-marquee {
+  display: flex;
+  white-space: nowrap;
+  animation: marquee 30s linear infinite;
+}
+
+/* ── Massive Heading Style ──────────────────────────────── */
+h1, h2, h3, .massive-heading {
+  font-family: var(--font-serif);
+  font-weight: var(--heading-weight);
+  letter-spacing: var(--heading-tracking);
+  line-height: var(--heading-line-height);
+  text-transform: uppercase;
 }
 
 /* ── Reset & Globals ────────────────────────────────────── */
@@ -155,15 +161,13 @@ body::after {
 
 /* ── Acid Graphic Utilities ──────────────────────────────── */
 .grid-background {
-  background-color: #000;
-  background-image: 
-    linear-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
+  background-color: #060606;
+  background-image: radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
 .text-acid {
-  color: var(--color-acid-green);
+  color: #CEFE00;
 }
 
 .btn-brutal {
@@ -201,6 +205,16 @@ body::after {
 .btn-brutal-outline:hover {
   background: rgba(255, 255, 255, 0.05);
   border-color: #f6f4f0;
+}
+
+.neon-grid-bg {
+  background-image: radial-gradient(rgba(206, 254, 0, 0.05) 1px, transparent 1px);
+  background-size: 60px 60px;
+}
+
+.neon-border-acid {
+  border: 1px solid var(--color-acid-lime) !important;
+  box-shadow: 0 0 15px rgba(206, 254, 0, 0.15);
 }
 
 /* Call Button - Special Accent */
