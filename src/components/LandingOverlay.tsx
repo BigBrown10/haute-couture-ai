@@ -1,69 +1,21 @@
 import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import RotatingHeroText from './RotatingHeroText';
 import SerratedDivider from './SerratedDivider';
 import StickyNote from './StickyNote';
 import CatalogLabel from './CatalogLabel';
 import Marquee from './Marquee';
 import FeatureGrid from './FeatureGrid';
-
-export type PersonaId = 'despina' | 'gina' | 'tony' | 'aria';
-
-export interface Persona {
-    id: PersonaId;
-    name: string;
-    specialty: string;
-    description: string;
-    image: string;
-    voice: string;
-    mode: 'stylist' | 'designer';
-}
-
-export const PERSONAS: Persona[] = [
-    {
-        id: 'despina',
-        name: 'Despina',
-        specialty: 'Chic Parisian Stylist',
-        description: 'Effortlessly chic and sharp. She is the sophisticated older sister you always wanted.',
-        image: '/avatars/despina.png',
-        voice: 'Kore',
-        mode: 'stylist'
-    },
-    {
-        id: 'tony',
-        name: 'Tony',
-        specialty: 'Streetwear Expert',
-        description: 'The effortlessly cool brother who knows every drop.',
-        image: '/avatars/tony.png',
-        voice: 'Puck',
-        mode: 'stylist'
-    },
-    {
-        id: 'gina',
-        name: 'Gina',
-        specialty: 'Your Glam Bestie',
-        description: 'Bubbly, energetic, and your biggest hype woman!',
-        image: '/avatars/gina.png',
-        voice: 'Aoede',
-        mode: 'stylist'
-    },
-    {
-        id: 'aria',
-        name: 'Aria',
-        specialty: '3D AI Designer',
-        description: 'Sophisticated, precise, and visionary AI Designer.',
-        image: '/avatars/aria.png',
-        voice: 'Aoede',
-        mode: 'designer'
-    }
-];
+import { PERSONAS, Persona } from '@/lib/agents';
 
 interface LandingOverlayProps {
     exiting: boolean;
-    onStart: (persona: Persona) => void;
+    onStart?: (persona: Persona) => void;
 }
 
 export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const router = useRouter();
 
     const scrollToSection = (id: string) => {
         const el = document.getElementById(id);
@@ -277,7 +229,10 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                             cursor: 'pointer',
                             position: 'relative',
                             transition: 'transform 400ms var(--ease-editorial)'
-                        }} className="card-hover-scale" onClick={() => onStart(persona)}>
+                        }} className="card-hover-scale" onClick={() => {
+                            if (onStart) onStart(persona);
+                            router.push(`/agent/${persona.id}`);
+                        }}>
                             <div style={{
                                 width: '100%',
                                 aspectRatio: '3/4',
