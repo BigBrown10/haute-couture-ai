@@ -3,6 +3,8 @@ import RotatingHeroText from './RotatingHeroText';
 import SerratedDivider from './SerratedDivider';
 import StickyNote from './StickyNote';
 import CatalogLabel from './CatalogLabel';
+import Marquee from './Marquee';
+import FeatureGrid from './FeatureGrid';
 
 export type PersonaId = 'despina' | 'gina' | 'tony' | 'aria';
 
@@ -69,7 +71,7 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
     };
 
     return (
-        <div className={`landing-overlay ${exiting ? 'exiting' : ''}`} style={{
+        <div className={`landing-overlay neon-grid-bg ${exiting ? 'exiting' : ''}`} style={{
             position: 'fixed',
             inset: 0,
             zIndex: 1000,
@@ -82,7 +84,7 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
             {/* Top Navigation Bar - Center Pill */}
             <nav style={{
                 position: 'fixed',
-                top: '24px',
+                top: '20px',
                 left: 0,
                 right: 0,
                 display: 'flex',
@@ -93,32 +95,42 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                 pointerEvents: 'none'
             }}>
                 <div style={{ pointerEvents: 'auto' }}>
-                    <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '24px' }} />
+                    <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '64px', opacity: 1 }} />
                 </div>
                 
                 <div style={{
                     display: 'flex',
-                    background: 'rgba(231, 229, 228, 0.05)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    padding: '6px',
+                    background: 'rgba(12, 10, 9, 0.4)',
+                    backdropFilter: 'blur(32px)',
+                    WebkitBackdropFilter: 'blur(32px)',
+                    padding: '4px',
                     borderRadius: '999px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.04)',
                     pointerEvents: 'auto'
                 }}>
-                    {['Journal', 'Curations', 'Studio', 'Archive'].map(link => (
-                        <button key={link} style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--text-stone)',
-                            padding: '10px 24px',
-                            fontSize: '14px',
-                            fontWeight: 500,
-                            borderRadius: '999px',
-                            cursor: 'pointer',
-                            transition: 'all 300ms var(--ease-editorial)',
-                        }} className="nav-btn-hover">
-                            {link}
+                    {[
+                        { label: 'Stylist', target: 'designer-selection' },
+                        { label: 'Features', target: 'features' },
+                        { label: 'Contact', target: 'footer' }
+                    ].map(link => (
+                        <button 
+                            key={link.label} 
+                            onClick={() => scrollToSection(link.target)}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-stone)',
+                                padding: '8px 20px',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                borderRadius: '999px',
+                                cursor: 'pointer',
+                                opacity: 0.6,
+                                transition: 'all 300ms var(--ease-editorial)',
+                            }} className="nav-btn-hover">
+                            {link.label}
                         </button>
                     ))}
                 </div>
@@ -127,140 +139,155 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                     <button style={{
                         background: 'var(--color-acid-lime)',
                         color: 'var(--bg-avant-black)',
-                        padding: '12px 28px',
+                        padding: '10px 24px',
                         borderRadius: '999px',
-                        fontWeight: 600,
-                        fontSize: '14px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        fontSize: '11px',
                         border: 'none',
-                        cursor: 'pointer'
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 20px rgba(206, 254, 0, 0.25)'
                     }} onClick={() => scrollToSection('designer-selection')}>
-                        Inquire Now
+                        Inquire
                     </button>
                 </div>
+
             </nav>
 
             {/* SECTION 1: HERO */}
             <section id="hero" style={{
                 minHeight: '100vh',
                 display: 'grid',
-                gridTemplateColumns: '5fr 7fr',
-                padding: '140px 40px 60px',
+                gridTemplateColumns: '45% 55%',
+                padding: '80px 40px 60px',
                 gap: '80px',
-                position: 'relative'
+                position: 'relative',
+                maxWidth: '1800px',
+                margin: '0 auto',
+                alignItems: 'center',
+                background: '#060606'
             }}>
+
                 <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-                    <div style={{ marginBottom: '40px' }}>
+                    <div style={{ marginBottom: '4px' }}>
                         <RotatingHeroText />
                     </div>
                     
                     <p style={{ 
                         fontSize: '1.25rem', 
+                        fontFamily: 'var(--font-mono)',
                         opacity: 0.6, 
                         maxWidth: '480px', 
                         lineHeight: 1.5,
-                        marginBottom: '60px'
+                        marginBottom: '16px',
+                        letterSpacing: '-0.02em'
                     }}>
                         A research-led design archive exploring the intersection of biological form and industrial precision.
                     </p>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <div style={{ display: 'flex' }}>
-                            {[1, 2, 3].map(i => (
-                                <div key={i} style={{
-                                    width: '40px',
-                                    height: '40px',
-                                    borderRadius: '50%',
-                                    background: '#292524',
-                                    border: '2px solid var(--bg-avant-black)',
-                                    marginLeft: i === 1 ? 0 : '-12px',
-                                    overflow: 'hidden'
-                                }}>
-                                    <img src={`/avatars/${i === 1 ? 'despina' : i === 2 ? 'tony' : 'gina'}.png`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'grayscale(1)' }} />
-                                </div>
-                            ))}
-                        </div>
-                        <span style={{ fontSize: '11px', fontWeight: 600, letterSpacing: '0.1em', opacity: 0.5 }}>TRUSTED BY 14K+ OBSERVERS</span>
-                    </div>
+                    <button 
+                        onClick={() => scrollToSection('designer-selection')}
+                        style={{
+                            background: 'var(--color-acid-lime)',
+                            color: '#000',
+                            border: 'none',
+                            padding: '16px 48px',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 900,
+                            textTransform: 'uppercase',
+                            borderRadius: '999px',
+                            cursor: 'pointer',
+                            pointerEvents: 'auto',
+                            boxShadow: '0 0 30px rgba(206, 254, 0, 0.2)',
+                            transition: 'all 300ms var(--ease-editorial)',
+                            maxWidth: '240px'
+                        }} className="btn-brutal-hover">
+                        START STYLING
+                    </button>
                 </div>
 
-                <div style={{ position: 'relative', height: '100%', minHeight: '600px' }}>
+
+                <div style={{ position: 'relative', height: '100%', minHeight: '600px', width: '100%', maxWidth: '900px', margin: '0 auto' }}>
                     <div style={{
                         width: '100%',
                         height: '100%',
-                        borderRadius: '10rem 10rem 24px 24px',
+                        borderRadius: '32px',
                         overflow: 'hidden',
                         position: 'relative',
-                        background: '#1C1917'
+                        background: '#060606',
+                        border: '1px solid rgba(255, 255, 255, 0.05)'
                     }}>
-                        <img 
-                            src="https://images.unsplash.com/photo-1446776811953-b23d57bd21aa?q=80&w=2072&auto=format&fit=crop" 
-                            alt="Editorial" 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.5 }}
-                        />
-                        <CatalogLabel id="B4A-X" />
-                        <div style={{ position: 'absolute', bottom: '16px', right: '16px', color: 'var(--text-stone)', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>
-                             SYNTHESIZED NEURAL STRUCTURE
-                        </div>
+                        <video 
+                            autoPlay 
+                            loop 
+                            muted 
+                            playsInline
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectPosition: 'center',
+                                opacity: 1
+                            }}
+                        >
+                            <source src="/maniqouue.webm" type="video/webm" />
+                        </video>
                     </div>
                     
-                    <div style={{ position: 'absolute', top: '-20px', right: '-20px' }}>
-                        <StickyNote 
-                            title="Volume 01" 
-                            description="Now curated — The architectural silhouettes of Autumn/Winter."
-                            ctaText="Inquire Now"
-                            rotation={6}
-                        />
-                    </div>
                 </div>
             </section>
-
-            <SerratedDivider position="bottom" />
+            <Marquee />
 
             {/* SECTION 2: DESIGNER SELECTION */}
             <section id="designer-selection" style={{
                 padding: '120px 40px',
-                background: 'var(--bg-warm-charcoal)',
-                minHeight: '100vh'
+                background: 'transparent',
+                minHeight: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center'
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '80px' }}>
-                    <h2 style={{
-                        fontFamily: 'var(--font-serif)',
-                        fontSize: '4.5rem',
-                        fontWeight: 300,
-                        margin: 0
-                    }}>
-                        Select your <i style={{ fontWeight: 200 }}>Designer</i>
-                    </h2>
-                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', opacity: 0.4, letterSpacing: '0.2em' }}>
-                        VIEWING ARCHIVE 001 - 004
-                    </div>
-                </div>
+                <h2 style={{
+                    fontFamily: 'var(--font-acid-heading)',
+                    fontSize: 'clamp(2rem, 5vw, 4rem)',
+                    fontWeight: 900,
+                    textAlign: 'center',
+                    marginBottom: '80px',
+                    color: 'var(--text-stone)',
+                    lineHeight: 0.9,
+                    letterSpacing: '-0.04em',
+                    textTransform: 'uppercase'
+                }}>
+                    CHOOSE YOUR FASHION PILOT
+                </h2>
 
                 <div style={{ 
-                    display: 'flex', 
-                    gap: '32px', 
-                    overflowX: 'auto', 
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                    gap: '20px',
+                    maxWidth: '1400px',
+                    margin: '0 auto',
                     paddingBottom: '40px',
-                    scrollbarWidth: 'none',
-                    msOverflowStyle: 'none'
-                }} className="hide-scrollbar">
-                    {PERSONAS.map((persona, idx) => (
+                    width: '100%'
+                }}>
+                    {PERSONAS.map((persona) => (
                         <div key={persona.id} style={{
-                            flex: '0 0 420px',
                             cursor: 'pointer',
                             position: 'relative',
-                            transition: 'transform 400ms var(--ease-editorial)',
-                            marginTop: idx % 2 === 0 ? '40px' : '0'
+                            transition: 'transform 400ms var(--ease-editorial)'
                         }} className="card-hover-scale" onClick={() => onStart(persona)}>
                             <div style={{
                                 width: '100%',
                                 aspectRatio: '3/4',
                                 borderRadius: '24px',
                                 overflow: 'hidden',
-                                background: '#292524',
+                                background: '#060606',
                                 position: 'relative',
-                                border: '1px solid rgba(255, 255, 255, 0.05)'
-                            }}>
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+                            }} className="stylist-card-highlight">
                                 <img 
                                     src={persona.image} 
                                     alt={persona.name} 
@@ -268,129 +295,116 @@ export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps
                                         width: '100%', 
                                         height: '100%', 
                                         objectFit: 'cover', 
-                                        transition: 'all 500ms var(--ease-editorial)'
+                                        transition: 'all 500ms var(--ease-editorial)',
+                                        filter: 'grayscale(0)'
                                     }} 
-                                    className="grayscale-to-color"
+                                    className="card-image"
                                 />
-                                <CatalogLabel id={`00${idx + 1}`} />
-                            </div>
-                            <div style={{ marginTop: '24px' }}>
-                                <h3 style={{ 
-                                    fontFamily: 'var(--font-serif)', 
-                                    fontSize: '2rem', 
-                                    fontWeight: 300, 
-                                    margin: 0 
-                                }}>
-                                    {persona.name} <i style={{ fontWeight: 200 }}>Study</i>
-                                </h3>
-                                <p style={{ 
-                                    fontFamily: 'var(--font-mono)', 
-                                    fontSize: '11px', 
-                                    opacity: 0.4, 
-                                    textTransform: 'uppercase', 
-                                    marginTop: '8px',
-                                    letterSpacing: '0.1em'
-                                }}>
-                                    SERIES 01 — {persona.specialty}
-                                </p>
+                                <CatalogLabel title={persona.name} subtitle={persona.specialty} />
                             </div>
                         </div>
                     ))}
                 </div>
             </section>
 
-            <SerratedDivider position="top" />
+            <FeatureGrid />
 
             {/* SECTION 3: FINAL CTA */}
-            <section style={{
-                padding: '120px 40px',
+            <section id="footer-cta" className="neon-grid-bg" style={{
+                padding: '160px 40px',
                 display: 'flex',
                 justifyContent: 'center',
                 alignItems: 'center',
-                background: 'var(--bg-avant-black)'
+                background: 'transparent'
             }}>
                 <div style={{
                     width: '100%',
-                    maxWidth: '1200px',
+                    maxWidth: '800px',
                     background: 'var(--color-acid-lime)',
-                    borderRadius: '48px',
-                    padding: '100px 80px',
-                    position: 'relative',
-                    overflow: 'hidden',
+                    padding: '80px 40px',
+                    borderRadius: '32px',
                     display: 'flex',
                     flexDirection: 'column',
-                    alignItems: 'flex-start',
-                    gap: '40px'
+                    alignItems: 'center',
+                    gap: '40px',
+                    textAlign: 'center'
                 }}>
-                    <div style={{ position: 'absolute', top: '40px', left: '40px', fontSize: '2rem' }}>☆</div>
+                    <div style={{ position: 'absolute', top: '40px', left: '40px', fontSize: '24px' }}>☆</div>
                     <h2 style={{
-                        fontFamily: 'var(--font-serif)',
-                        fontSize: '5rem',
-                        color: 'var(--bg-avant-black)',
-                        lineHeight: 1.1,
+                        fontFamily: 'var(--font-acid-heading)',
+                        fontSize: 'clamp(2.5rem, 8vw, 5rem)',
+                        fontWeight: 900,
+                        color: '#000',
+                        lineHeight: 0.85,
                         margin: 0,
-                        maxWidth: '800px',
-                        fontWeight: 300
+                        letterSpacing: '-0.04em',
+                        textTransform: 'uppercase'
                     }}>
-                        Ready to <i style={{ fontWeight: 200 }}>redefine</i> the digital landscape?
+                        STOP GUESSING YOUR FIT
                     </h2>
                     
                     <p style={{
-                        fontSize: '1.25rem',
-                        color: 'rgba(12, 10, 9, 0.7)',
-                        maxWidth: '600px',
-                        lineHeight: 1.5,
-                        marginTop: '20px'
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '14px',
+                        color: 'rgba(0,0,0,0.6)',
+                        maxWidth: '400px',
+                        margin: 0,
+                        lineHeight: 1.4,
+                        fontWeight: 600
                     }}>
-                        We are opening our private studio for 2024 collaborations. Join a network of observers focused on pure aesthetic utility.
+                        Get professional unfiltered fashion direction with our 3D AI Agents
                     </p>
 
-                    <div style={{ 
-                        width: '100%', 
-                        height: '1px', 
-                        background: 'rgba(12, 10, 9, 0.1)', 
-                        margin: '20px 0' 
-                    }} />
-
-                    <div style={{ width: '100%', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <button style={{
-                            background: 'var(--bg-avant-black)',
+                    <button 
+                        onClick={() => scrollToSection('hero')}
+                        style={{
+                            background: '#000',
                             color: 'var(--color-acid-lime)',
-                            padding: '20px 48px',
+                            padding: '18px 48px',
                             borderRadius: '999px',
                             border: 'none',
-                            fontSize: '14px',
-                            fontWeight: 700,
-                            letterSpacing: '0.1em',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 900,
                             cursor: 'pointer',
-                            textTransform: 'uppercase'
-                        }} onClick={() => scrollToSection('designer-selection')}>
-                            Submit Application
-                        </button>
-                        
-                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: '12px', color: 'rgba(12, 10, 9, 0.4)', textTransform: 'uppercase' }}>
-                            NEXT INTAKE: OCTOBER 15TH, 2024
-                        </div>
-                    </div>
+                            textTransform: 'uppercase',
+                            transition: 'all 300ms var(--ease-editorial)'
+                        }} className="cta-btn-hover">
+                        GET STARTED
+                    </button>
                 </div>
             </section>
-
+            
             <style jsx>{`
-                .nav-btn-hover:hover {
-                    background: rgba(231, 229, 228, 0.1) !important;
-                }
-                .card-hover-scale:hover {
+                .landing-overlay.exiting {
                     transform: translateY(-20px);
+                }
+                .grayscale-to-color {
+                    filter: grayscale(0.2);
+                    transition: all 500ms var(--ease-editorial);
                 }
                 .card-hover-scale:hover .grayscale-to-color {
                     filter: grayscale(0) !important;
                     transform: scale(1.05);
                 }
-                .grayscale-to-color {
-                    filter: grayscale(1);
-                }
                 .hide-scrollbar::-webkit-scrollbar {
                     display: none;
+                }
+                .cta-btn-hover:hover {
+                    background: var(--text-stone) !important;
+                    color: var(--bg-avant-black) !important;
+                }
+                .stylist-card-highlight {
+                    transition: all 400ms var(--ease-editorial);
+                }
+                .card-hover-scale:hover .stylist-card-highlight {
+                    border: 1px solid var(--color-acid-lime) !important;
+                    box-shadow: 0 0 15px rgba(206, 254, 0, 0.15);
+                }
+                .btn-brutal-hover:hover {
+                    background: #fff !important;
+                    transform: translateY(-2px);
+                    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
                 }
             `}</style>
         </div>
