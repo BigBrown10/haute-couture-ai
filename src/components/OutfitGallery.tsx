@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import type { GeneratedOutfit } from '@/app/page';
+import type { GeneratedOutfit } from '@/lib/types';
 
 interface OutfitGalleryProps {
     outfits: GeneratedOutfit[];

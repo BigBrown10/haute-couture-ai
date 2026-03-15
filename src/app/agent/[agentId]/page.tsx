@@ -1,13 +1,26 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, use } from 'react';
-import { useSocketConnection } from '@/hooks/useSocketConnection';
+import { useGeminiLive } from '@/hooks/useGeminiLive';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
 import ChatPanel, { ChatMessage } from '@/components/ChatPanel';
 import ActiveCallUI from '@/components/ActiveCallUI';
 import { PERSONAS, Persona } from '@/lib/agents';
 import { useRouter } from 'next/navigation';
+import { 
+  PERSONA_SYSTEM_PROMPT, 
+  TONY_SYSTEM_PROMPT, 
+  GINA_SYSTEM_PROMPT, 
+  ARIA_SYSTEM_PROMPT 
+} from '@/lib/prompts';
+
+const SYSTEM_PROMPTS: Record<string, string> = {
+  despina: PERSONA_SYSTEM_PROMPT,
+  tony: TONY_SYSTEM_PROMPT,
+  gina: GINA_SYSTEM_PROMPT,
+  aria: ARIA_SYSTEM_PROMPT,
+};
 
 export default function AgentPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = use(params);
@@ -37,20 +50,23 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
   
   const {
     connected,
-    startSession,
-    endSession,
-    sendAudioChunk,
-    sendVideoFrame,
-    sendGarmentPhoto,
+    connect,
+    disconnect,
+    sendAudio,
     sendText,
-  } = useSocketConnection({
+  } = useGeminiLive({
     onTranscript: (text, role) => {
-      setMessages(prev => [...prev, {
-        id: `msg-${Date.now()}`,
-        text,
-        role,
-        timestamp: Date.now()
-      }]);
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg && lastMsg.role === role && lastMsg.text === text) return prev;
+        
+        return [...prev, {
+          id: `msg-${Date.now()}`,
+          text,
+          role,
+          timestamp: Date.now()
+        }];
+      });
     },
     onThought: (text) => {
       setMessages(prev => [...prev, {
@@ -61,21 +77,8 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
         thought: text
       }]);
     },
-    onGeneratedOutfit: (imageBase64, caption) => {
-      setMessages(prev => [...prev, {
-        id: `outfit-${Date.now()}`,
-        text: caption,
-        role: 'agent',
-        timestamp: Date.now(),
-        imageBase64: imageBase64 || undefined
-      }]);
-    },
     onThinking: (status) => setThinkingStatus(status || null),
-    onSessionStarted: () => setSessionReady(true),
     onError: (msg) => console.error(`[Agent Error] ${msg}`),
-    onInterrupted: () => {
-      stopPlayback();
-    },
     onAudioOut: (audioBase64) => {
       playChunk(audioBase64);
     },
@@ -86,7 +89,7 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
   });
 
   const { startCapture, stopCapture } = useAudioCapture((base64) => {
-    if (micEnabled) sendAudioChunk(base64);
+    if (micEnabled && connected) sendAudio(base64);
   });
 
   // ── Initialize Session on Mount ──────────────────────────
@@ -99,18 +102,25 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
 
     setActivePersona(persona);
     setSessionActive(true);
-    startSession(persona.voice, persona.mode);
+
+    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
+    const systemInstruction = SYSTEM_PROMPTS[agentId] || PERSONA_SYSTEM_PROMPT;
+
+    connect(apiKey, { systemInstruction }).then(() => {
+      setSessionReady(true);
+    });
+
     initAudio();
     startCapture();
     setMicEnabled(true);
 
     return () => {
-      endSession();
+      disconnect();
       stopCapture();
       stopPlayback();
       cleanup();
     };
-  }, [agentId, router, startSession, endSession, initAudio, stopCapture, stopPlayback, cleanup, startCapture]);
+  }, [agentId, router, connect, disconnect, initAudio, stopCapture, stopPlayback, cleanup, startCapture]);
 
   const handleEndSession = useCallback(() => {
     router.push('/');
@@ -149,7 +159,7 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         const base64Data = dataUrl.split(',')[1];
         setUserPhoto(base64Data);
-        sendVideoFrame(base64Data);
+        // sendVideoFrame(base64Data); // Future work: native video support
         
         setMessages(prev => prev.map(m => 
           m.id === tempId ? { ...m, text: "Here is my photo.", imageBase64: base64Data } : m
@@ -161,7 +171,7 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
       }
     };
     img.src = URL.createObjectURL(file);
-  }, [sendVideoFrame, sendText, activePersona]);
+  }, [sendText, activePersona]);
 
   const handleGarmentPhoto = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -191,8 +201,8 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
         ctx.drawImage(img, 0, 0, w, h);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         const base64Data = dataUrl.split(',')[1];
-        sendGarmentPhoto(base64Data);
-
+        // sendGarmentPhoto(base64Data); // Future work: native multimodal support
+        
         setMessages(prev => prev.map(m => 
           m.id === tempId ? { ...m, text: "Can you try this on me?", imageBase64: base64Data } : m
         ));
@@ -201,7 +211,7 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
       }
     };
     img.src = URL.createObjectURL(file);
-  }, [sendGarmentPhoto, sendText]);
+  }, [sendText]);
 
   const handleSendMessage = useCallback((text: string) => {
     sendText(text);
