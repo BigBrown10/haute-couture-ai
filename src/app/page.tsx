@@ -165,6 +165,8 @@ export default function HomePage() {
     setThinkingStatus(null);
     setLandingExiting(false);
     setActivePersona(null);
+    setMicEnabled(false); // Ensure mic is off when returning to landing
+    setIsChatExpanded(false); // Reset chat state
   }, [endSession, stopCapture, stopPlayback, cleanupAudio]);
 
   // Toggle mic
@@ -288,13 +290,15 @@ export default function HomePage() {
 
   // ── Text Only Mode Audio Management ──────────────
   useEffect(() => {
+    if (!sessionActive) return;
+
     if (isChatExpanded) {
       // Text Only Mode: Stop and cleanup audio
       stopPlayback();
       cleanupAudio();
       stopCapture();
       setMicEnabled(false);
-    } else if (sessionActive) {
+    } else {
       // Return to Voice Mode: Re-init and start capture
       initAudio();
       setMicEnabled(true);

@@ -60,6 +60,8 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
     const faceMeshesRef = useRef<THREE.SkinnedMesh[]>([]);
 
     const [debugError, setDebugError] = useState<string | null>(null);
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [loadProgress, setLoadProgress] = useState(0);
 
     useEffect(() => {
         if (!canvasRef.current || !containerRef.current) return;
@@ -215,16 +217,40 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
                             action.play();
                             activeActionRef.current = action;
                             setDebugError(null); // Clear errors on success
+                            
+                            // FADE OUT LOADING SCREEN
+                            setTimeout(() => {
+                                setIsLoaded(true);
+                            }, 800);
                         }
                     } catch (e: any) {
                         console.error(`[VRMStage] Retargeting failed:`, e);
                         setDebugError(`Anim Error: ${e.message}`);
                     }
+                }, (xhr) => {
+                    if (cfg.name === 'idle' && xhr.total > 0) {
+                        setLoadProgress(Math.floor((xhr.loaded / xhr.total) * 100));
+                    }
                 });
             });
-        }, undefined, (err) => {
+        }, (xhr) => {
+            setLoadProgress(Math.floor((xhr.loaded / xhr.total) * 100));
+        }, (err) => {
             setDebugError(`GLB Error: ${err}`);
         });
+
+        // GROUND GLOW (Acid Lime aesthetic)
+        const groundGlowGeo = new THREE.CircleGeometry(2, 32);
+        const groundGlowMat = new THREE.MeshBasicMaterial({
+            color: 0xCEFE00,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.DoubleSide
+        });
+        const groundGlow = new THREE.Mesh(groundGlowGeo, groundGlowMat);
+        groundGlow.rotation.x = -Math.PI / 2;
+        groundGlow.position.y = 0.01;
+        scene.add(groundGlow);
 
         // Loop
         let frameId: number;
@@ -354,13 +380,44 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
     }, [agentGesture]);
 
     return (
-        <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>
-            {debugError && (
-                <div style={{ position: 'absolute', top: 10, right: 10, color: 'white', background: 'rgba(255,0,0,0.8)', padding: '10px 20px', zIndex: 10000, borderRadius: '8px' }}>
-                    🚨 ERROR: {debugError}
+        <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, background: '#060606' }}>
+            {/* LAZY LOAD OVERLAY */}
+            {!isLoaded && (
+                <div style={{
+                    position: 'absolute', inset: 0, zIndex: 1000,
+                    background: '#060606', display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: '2rem',
+                    transition: 'opacity 0.8s ease'
+                }}>
+                    <div style={{ position: 'relative', width: '200px', height: '2px', background: 'rgba(255,255,255,0.05)' }}>
+                        <div style={{
+                            position: 'absolute', top: 0, left: 0, height: '100%',
+                            width: `${loadProgress}%`, background: '#CEFE00',
+                            boxShadow: '0 0 15px rgba(206, 254, 0, 0.5)',
+                            transition: 'width 0.3s ease'
+                        }} />
+                    </div>
+                    <div style={{
+                        fontSize: '0.7rem', color: '#CEFE00', fontWeight: 800,
+                        letterSpacing: '0.2em', textTransform: 'uppercase'
+                    }}>
+                        Initializing Session... {loadProgress}%
+                    </div>
                 </div>
             )}
-            <canvas ref={canvasRef} style={{ display: 'block' }} />
+
+            {debugError && (
+                <div style={{ 
+                    position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+                    color: '#fff', background: 'rgba(0,0,0,0.8)', 
+                    padding: '12px 24px', zIndex: 10000, borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)',
+                    fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '12px'
+                }}>
+                    <span style={{ color: '#ff4d6a' }}>⚠</span> {debugError}
+                </div>
+            )}
+            <canvas ref={canvasRef} style={{ display: 'block', opacity: isLoaded ? 1 : 0, transition: 'opacity 1.5s ease' }} />
         </div>
     );
 }
