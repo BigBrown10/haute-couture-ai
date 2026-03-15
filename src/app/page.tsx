@@ -185,6 +185,15 @@ export default function HomePage() {
       const file = event.target.files?.[0];
       if (!file) return;
 
+      const tempId = `upload-${Date.now()}`;
+      setMessages(prev => [...prev, {
+        id: tempId,
+        text: "Uploading photo...",
+        role: 'user',
+        timestamp: Date.now()
+      }]);
+      setThinkingStatus("Processing photo...");
+
       const img = new Image();
       img.onload = () => {
         const canvas = document.createElement('canvas');
@@ -202,6 +211,13 @@ export default function HomePage() {
           const base64Data = dataUrl.split(',')[1];
           setUserPhoto(base64Data);
           sendVideoFrame(base64Data);
+          
+          // Update message with actual image
+          setMessages(prev => prev.map(m => 
+            m.id === tempId ? { ...m, text: "Here is my photo.", imageBase64: base64Data } : m
+          ));
+          setThinkingStatus(null);
+
           const prompt = activePersona?.mode === 'designer'
             ? "I just uploaded a reference sketch. Could you analyze it and help me iterate on this design?"
             : "Hey bestie! I just uploaded a photo of myself. What do you think of my current style? Can you recommend something better?";
@@ -217,6 +233,15 @@ export default function HomePage() {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0];
       if (!file) return;
+
+      const tempId = `upload-garment-${Date.now()}`;
+      setMessages(prev => [...prev, {
+        id: tempId,
+        text: "Uploading dress...",
+        role: 'user',
+        timestamp: Date.now()
+      }]);
+      setThinkingStatus("Analyzing item...");
 
       const img = new Image();
       img.onload = () => {
@@ -235,6 +260,13 @@ export default function HomePage() {
           const base64Data = dataUrl.split(',')[1];
           setGarmentPhoto(base64Data);
           sendGarmentPhoto(base64Data);
+
+          // Update message with actual image
+          setMessages(prev => prev.map(m => 
+            m.id === tempId ? { ...m, text: "Can you try this on me?", imageBase64: base64Data } : m
+          ));
+          setThinkingStatus(null);
+
           sendText("Wait, what about this specific item? Can you place this on me so I can see how it looks?");
         }
       };
