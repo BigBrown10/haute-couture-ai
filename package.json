@@ -3,8 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --port 3000",
-    "dev:server": "tsx server/server.ts",
+    "dev": "next dev",
+    "dev:server": "tsx --watch server/server.ts",
     "build": "next build",
     "start": "next start",
     "docker:build": "docker build -t haute-couture-backend .",
@@ -21,7 +21,8 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "three": "^0.183.2",
-    "uuid": "^13.0.0"
+    "uuid": "^13.0.0",
+    "wawa-lipsync": "^0.0.2"
   },
   "devDependencies": {
     "@types/node": "^20",

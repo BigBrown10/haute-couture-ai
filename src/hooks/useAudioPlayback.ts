@@ -1,6 +1,7 @@
 'use client';
 
 import { useRef, useCallback, useState } from 'react';
+import { Lipsync } from 'wawa-lipsync';
 
 export interface VisemeData {
     volume: number;
@@ -11,41 +12,40 @@ export interface VisemeData {
     o: number;
 }
 
-/**
- * Hook to play incoming PCM audio from the Gemini Live API.
- * Uses an AnalyserNode to construct a VisemeData object for true lip-sync.
- */
 export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void) {
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const analyserRef = useRef<AnalyserNode | null>(null);
     const queueRef = useRef<AudioBufferSourceNode[]>([]);
     const nextStartTimeRef = useRef(0);
     const animationFrameRef = useRef<number | null>(null);
+    
+    const isPlayingRef = useRef(false);
     const [isPlaying, setIsPlaying] = useState(false);
 
     const PLAYBACK_SAMPLE_RATE = 24000;
+    const lipsyncRef = useRef<Lipsync | null>(null);
 
     const getContext = useCallback(() => {
-        if (!audioContextRef.current || audioContextRef.current.state === 'closed') {
-            const ctx = new AudioContext({ sampleRate: PLAYBACK_SAMPLE_RATE });
-            audioContextRef.current = ctx;
+        if (!lipsyncRef.current) {
+            try {
+                // STOP MONKEY-PATCHING: Let Wawa create its own AudioContext and Analyser
+                const ls = new Lipsync({ fftSize: 1024, historySize: 5 });
+                lipsyncRef.current = ls;
+            } catch (err) {
+                console.warn('[AudioPlayback] Wawa Lipsync init failed', err);
+            }
+        }
 
-            // Add Analyser for volume detection
-            const analyser = ctx.createAnalyser();
-            analyser.fftSize = 256;
-            analyserRef.current = analyser;
-            analyser.connect(ctx.destination);
+        const ls = lipsyncRef.current;
+        if (ls && ls.audioContext.state === 'suspended') {
+            ls.audioContext.resume();
         }
-        if (audioContextRef.current.state === 'suspended') {
-            audioContextRef.current.resume();
-        }
-        return audioContextRef.current;
+        return ls?.audioContext || null;
     }, []);
 
     const playChunk = useCallback((audioBase64: string) => {
         try {
             const ctx = getContext();
-            const analyser = analyserRef.current!;
+            const ls = lipsyncRef.current;
+            if (!ctx || !ls) return;
 
             const binaryStr = atob(audioBase64);
             const bytes = new Uint8Array(binaryStr.length);
@@ -64,13 +64,12 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
 
             const source = ctx.createBufferSource();
             source.buffer = audioBuffer;
-            source.connect(analyser); // Connect to analyser instead of direct destination
+
+            // Route our AI audio straight into Wawa's internal analyser, then to speakers
+            source.connect(ls.analyser);
+            ls.analyser.connect(ctx.destination);
 
             const now = ctx.currentTime;
-
-            // ANTI-DRIFT GAP SKIPPER
-            // If network lags and chunks arrive later than the previous chunk's end time, 
-            // the queue normally waits. We forcefully resync to 'now' + 50ms buffer to skip dead air.
             if (nextStartTimeRef.current < now) {
                 nextStartTimeRef.current = now + 0.05;
             }
@@ -80,71 +79,49 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
             nextStartTimeRef.current = startTime + audioBuffer.duration;
 
             queueRef.current.push(source);
+            
+            setIsPlaying(true);
+            isPlayingRef.current = true;
+
             source.onended = () => {
                 queueRef.current = queueRef.current.filter((s) => s !== source);
                 if (queueRef.current.length === 0) {
                     setIsPlaying(false);
+                    isPlayingRef.current = false;
                     if (onVolumeChange) onVolumeChange({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
                 }
             };
 
-            // Volume & Viseme analysis loop using FFT
             if (onVolumeChange && !animationFrameRef.current) {
-                const dataArray = new Uint8Array(analyser.frequencyBinCount);
-
                 const updateVolume = () => {
-                    if (queueRef.current.length > 0) {
-                        analyser.getByteFrequencyData(dataArray);
+                    if (isPlayingRef.current && ls) {
+                        try {
+                            ls.processAudio();
+                            const vol = ls.features?.volume || 0;
+                            const activeViseme = ls.viseme; // e.g., 'viseme_aa'
 
-                        let totalVol = 0;
-                        let bandU = 0; // low: 0-500 Hz
-                        let bandA = 0; // mid: 500-1500 Hz
-                        let bandI = 0; // high: 1500-3000 Hz
-
-                        for (let i = 0; i < dataArray.length; i++) {
-                            const val = dataArray[i];
-                            totalVol += val;
-                            if (i > 1 && i <= 5) bandU += val;
-                            else if (i > 5 && i <= 16) bandA += val;
-                            else if (i > 16 && i <= 32) bandI += val;
+                            // Pass 1 for the active viseme, 0 for the rest.
+                            // vrmstage.tsx uses lerp() to smoothly glide between these!
+                            onVolumeChange({
+                                volume: vol * 10.0,
+                                a: activeViseme === 'viseme_aa' ? 1.0 : 0,
+                                i: activeViseme === 'viseme_I' ? 1.0 : 0,
+                                u: activeViseme === 'viseme_U' ? 1.0 : 0,
+                                e: activeViseme === 'viseme_E' ? 1.0 : 0,
+                                o: activeViseme === 'viseme_O' ? 1.0 : 0
+                            });
+                        } catch (err) {
+                            console.error('[AudioPlayback] LipSync Analysis Error:', err);
                         }
-
-                        // Normalize metrics
-                        const volume = (totalVol / dataArray.length) / 128;
-                        const u = (bandU / 4) / 255;
-                        const a = (bandA / 11) / 255;
-                        const i = (bandI / 16) / 255;
-
-                        // Find Dominant Vowel
-                        const total = Math.max(0.1, a + i + u);
-                        const aDom = a / total;
-                        const iDom = i / total;
-                        const uDom = u / total;
-
-                        // Only apply the loudest shape and severely dampen the multiplier so it doesn't just gape open!
-                        const envelope = Math.min(1.0, volume * 3.5);
-                        const isA = aDom > 0.4;
-                        const isI = iDom > 0.4;
-                        const isU = uDom > 0.4;
-
-                        onVolumeChange({
-                            volume,
-                            a: isA ? envelope : Math.max(0, envelope - 0.5), // fallback slightly
-                            i: isI ? envelope : 0,
-                            u: isU ? envelope : 0,
-                            e: isI ? envelope : 0,
-                            o: isU ? envelope : 0,
-                        });
+                        
                         animationFrameRef.current = requestAnimationFrame(updateVolume);
                     } else {
-                        onVolumeChange({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
                         animationFrameRef.current = null;
                     }
                 };
                 updateVolume();
             }
 
-            setIsPlaying(true);
         } catch (err) {
             console.error('[AudioPlayback] Error playing chunk:', err);
         }
@@ -159,15 +136,17 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
         queueRef.current = [];
         nextStartTimeRef.current = 0;
         setIsPlaying(false);
+        isPlayingRef.current = false;
         if (onVolumeChange) onVolumeChange({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
     }, [onVolumeChange]);
 
     const cleanup = useCallback(() => {
         stopPlayback();
-        if (audioContextRef.current) {
-            audioContextRef.current.close().catch(() => { });
-            audioContextRef.current = null;
+        const ls = lipsyncRef.current;
+        if (ls && ls.audioContext) {
+            ls.audioContext.close().catch(() => { });
         }
+        lipsyncRef.current = null;
     }, [stopPlayback]);
 
     return { playChunk, stopPlayback, cleanup, initAudio: getContext, isPlaying };
