@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Zaute AI — Brutally Honest 3D Fashion Designer
 
-## Getting Started
+Welcome to **Zaute AI**, a state-of-the-art 3D fashion orchestration platform powered by Gemini 2.5 and Gemini 3.1. Zaute combines real-time multimodal interaction with high-fidelity fashion generation, allowing users to collaborate with AI stylists (like Gina and Despina) to create, critique, and visualize the future of fashion.
 
-First, run the development server:
+## 🚀 Purpose
+The platform bridges the gap between AI intuition and high-end fashion design. It uses real-time audio and vision to create a seamless feedback loop where the AI doesn't just "chat"—it thinks, sketches, and renders fashion concepts in a 3D studio environment.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## 🛠️ Tech Stack (A-Z)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Frontend
+- **Framework**: Next.js 16 (React 19)
+- **3D Engine**: Three.js with `@pixiv/three-vrm` for real-time 3D avatar rendering.
+- **Audio**: `wawa-lipsync` for high-fidelity audio synchronization with 3D model expressions.
+- **Styling**: Vanilla CSS & Modern Typography.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Backend & Orchestration
+- **API Layers**: Next.js API Routes for image processing and asset management.
+- **Real-time Server**: Standalone Node.js server using **Socket.IO** for low-latency agent-client communication.
+- **Orchestration**: Custom Gemini Live SDK implementing the v1alpha Bidi WebSocket protocol.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### AI Models (Google Gemini)
+- **Gemini 2.5 Flash Native Audio**: Powers the real-time voice, vision, and internal reasoning of the agents.
+- **Gemini 3.1 Flash Image**: Handles "Nano Banana" (Virtual Try-On) and high-fashion sketch generation.
 
-## Learn More
+### Cloud & DevOps
+- **Infrastructure**: Google Cloud Platform (GCP).
+- **Deployment**: Google Cloud Run (Serverless GPU-ready container hosting).
+- **CI/CD**: Google Cloud Build with GitHub trigger integration.
+- **Containerization**: Docker.
 
-To learn more about Next.js, take a look at the following resources:
+## 🏗️ Architecture
+For a detailed look at the system architecture, see our [Platform Architecture Diagram](./platform_architecture.md).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 🏃 Getting Started
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Prerequisites
+- Node.js 18+
+- A valid `GEMINI_API_KEY` in your `.env` file.
 
-## Deploy on Vercel
+### Installation
+1. Clone the repository.
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### Running Locally
+You need to run both the frontend and the orchestration server:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. **Start the Frontend**:
+   ```bash
+   npm run dev
+   ```
+2. **Start the Orchestration Server**:
+   ```bash
+   npm run dev:server
+   ```
+   *The server will listen on port 3001 for Socket.IO connections.*
+
+Open [http://localhost:3100](http://localhost:3100) (or your configured port) to enter the studio.
+
+## 🖼️ Primary Features
+- **Real-time 3D Stylist**: Interact with VRM avatars that respond to your voice and text.
+- **Nano Banana (VTO)**: Generate virtual try-on images on a sculptural mannequin.
+- **Fashion Sketching**: Ask the AI to visualize high-fashion concepts on the fly.
+- **Studio Interface**: A premium, "brutally honest" environment for fashion exploration.
+
+---
+*Created with ❤️ by the Zaute Collections team. Finalized by Antigravity AI.*

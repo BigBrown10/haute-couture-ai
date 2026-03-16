@@ -77,6 +77,7 @@ export function useGeminiOrchestrator({ onTranscript, onAudioChunk, onImageReady
       try {
         const text = typeof event.data === 'string' ? event.data : await (event.data as Blob).text();
         const data = JSON.parse(text);
+        console.log('[GeminiLive] 📥 Raw Message:', data);
 
         if (data.setupComplete) {
           onThinking?.('');
@@ -86,45 +87,58 @@ export function useGeminiOrchestrator({ onTranscript, onAudioChunk, onImageReady
           return;
         }
 
+        // TOOL CALLS can arrive as a top-level property OR inside modelTurn parts
+        let pendingToolCall: any = null;
+
+        if (data.toolCall) {
+          pendingToolCall = data.toolCall;
+        } else if (data.serverContent?.modelTurn?.parts) {
+          const part = data.serverContent.modelTurn.parts.find((p: any) => p.functionCall);
+          if (part) pendingToolCall = part.functionCall;
+        }
+
+        if (pendingToolCall) {
+          const { name, args, id: callId } = pendingToolCall;
+          console.log(`[GeminiLive] 🤖 Agent requested tool: ${name}`, args);
+
+          if (name === 'generate_outfit' || name === 'generate_fashion_sketch') {
+            const prompt = args.prompt;
+            onThinking?.('✨ Generating vision...');
+
+            (async () => {
+              try {
+                const imageUrl = await callNanoBananaAPI(prompt);
+                onImageReady(imageUrl);
+                onThinking?.('');
+
+                if (socketRef.current?.readyState === WebSocket.OPEN) {
+                  socketRef.current.send(JSON.stringify({
+                    toolResponse: {
+                      functionResponses: [{ id: callId, name, response: { success: true, hasImage: true } }]
+                    }
+                  }));
+                }
+              } catch (err) {
+                console.error('[GeminiLive] Tool Execution Error:', err);
+                onThinking?.('');
+                if (socketRef.current?.readyState === WebSocket.OPEN) {
+                  socketRef.current.send(JSON.stringify({
+                    toolResponse: {
+                      functionResponses: [{ id: callId, name, response: { success: false, error: 'Generation failed.' } }]
+                    }
+                  }));
+                }
+              }
+            })();
+          }
+        }
+
         if (data.serverContent?.modelTurn?.parts) {
-          data.serverContent.modelTurn.parts.forEach((part: any) => {
+          console.log('[GeminiLive] 🧠 Model Turn Parts:', data.serverContent.modelTurn.parts);
+          data.serverContent.modelTurn.parts.forEach((part: any, idx: number) => {
+            console.log(`[GeminiLive] Part[${idx}]:`, part);
             if (part.text) onTranscript(part.text, 'agent');
             if (part.inlineData?.data) onAudioChunk(part.inlineData.data);
-
-            if (part.functionCall) {
-              const call = part.functionCall;
-              const callId = call.id;
-              const prompt = call.args.prompt;
-
-              onThinking?.('✨ Generating vision...');
-
-              (async () => {
-                try {
-                  const imageUrl = await callNanoBananaAPI(prompt);
-                  onImageReady(imageUrl);
-                  onThinking?.('');
-
-                  if (ws.readyState === WebSocket.OPEN) {
-                    // Matches your original node backend: just send the success response. No nudges.
-                    ws.send(JSON.stringify({
-                      toolResponse: {
-                        functionResponses: [{ id: callId, name: call.name, response: { success: true, hasImage: true } }]
-                      }
-                    }));
-                  }
-                } catch (err) {
-                  console.error('[GeminiLive] Tool Execution Error:', err);
-                  onThinking?.('');
-                  if (ws.readyState === WebSocket.OPEN) {
-                    ws.send(JSON.stringify({
-                      toolResponse: {
-                        functionResponses: [{ id: callId, name: call.name, response: { success: false, error: 'Generation failed.' } }]
-                      }
-                    }));
-                  }
-                }
-              })();
-            }
           });
         }
       } catch (e) { console.error(e); }
