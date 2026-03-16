@@ -12,6 +12,7 @@ interface UseGeminiOrchestratorProps {
 
 export function useGeminiOrchestrator({ onTranscript, onAudioChunk, onImageReady, onThinking, onError }: UseGeminiOrchestratorProps) {
   const socketRef = useRef<WebSocket | null>(null);
+  const userPhotoRef = useRef<string | null>(null);
   const [connected, setConnected] = useState(false);
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -87,50 +88,52 @@ export function useGeminiOrchestrator({ onTranscript, onAudioChunk, onImageReady
           return;
         }
 
-        // TOOL CALLS can arrive as a top-level property OR inside modelTurn parts
-        let pendingToolCall: any = null;
-
-        if (data.toolCall) {
-          pendingToolCall = data.toolCall;
+        // TOOL CALL PARSING
+        const toolCalls: any[] = [];
+        if (data.toolCall?.functionCalls) {
+          toolCalls.push(...data.toolCall.functionCalls);
         } else if (data.serverContent?.modelTurn?.parts) {
-          const part = data.serverContent.modelTurn.parts.find((p: any) => p.functionCall);
-          if (part) pendingToolCall = part.functionCall;
+          data.serverContent.modelTurn.parts.forEach((p: any) => {
+            if (p.functionCall) toolCalls.push(p.functionCall);
+          });
         }
 
-        if (pendingToolCall) {
-          const { name, args, id: callId } = pendingToolCall;
-          console.log(`[GeminiLive] 🤖 Agent requested tool: ${name}`, args);
+        if (toolCalls.length > 0) {
+          toolCalls.forEach(call => {
+            const { name, args, id: callId } = call;
+            console.log(`[GeminiLive] 🤖 Agent requested tool: ${name}`, args);
 
-          if (name === 'generate_outfit' || name === 'generate_fashion_sketch') {
-            const prompt = args.prompt;
-            onThinking?.('✨ Generating vision...');
+            if (name === 'generate_outfit' || name === 'generate_fashion_sketch') {
+              const prompt = args.prompt;
+              onThinking?.('✨ Generating vision...');
 
-            (async () => {
-              try {
-                const imageUrl = await callNanoBananaAPI(prompt);
-                onImageReady(imageUrl);
-                onThinking?.('');
+              (async () => {
+                try {
+                  const imageUrl = await callNanoBananaAPI(prompt, userPhotoRef.current);
+                  onImageReady(imageUrl);
+                  onThinking?.('');
 
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                  socketRef.current.send(JSON.stringify({
-                    toolResponse: {
-                      functionResponses: [{ id: callId, name, response: { success: true, hasImage: true } }]
-                    }
-                  }));
+                  if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    socketRef.current.send(JSON.stringify({
+                      toolResponse: {
+                        functionResponses: [{ id: callId, name, response: { success: true, hasImage: true } }]
+                      }
+                    }));
+                  }
+                } catch (err) {
+                  console.error('[GeminiLive] Tool Execution Error:', err);
+                  onThinking?.('');
+                  if (socketRef.current?.readyState === WebSocket.OPEN) {
+                    socketRef.current.send(JSON.stringify({
+                      toolResponse: {
+                        functionResponses: [{ id: callId, name, response: { success: false, error: 'Generation failed.' } }]
+                      }
+                    }));
+                  }
                 }
-              } catch (err) {
-                console.error('[GeminiLive] Tool Execution Error:', err);
-                onThinking?.('');
-                if (socketRef.current?.readyState === WebSocket.OPEN) {
-                  socketRef.current.send(JSON.stringify({
-                    toolResponse: {
-                      functionResponses: [{ id: callId, name, response: { success: false, error: 'Generation failed.' } }]
-                    }
-                  }));
-                }
-              }
-            })();
-          }
+              })();
+            }
+          });
         }
 
         if (data.serverContent?.modelTurn?.parts) {
@@ -164,6 +167,7 @@ export function useGeminiOrchestrator({ onTranscript, onAudioChunk, onImageReady
   }, []);
 
   const sendFitForCritique = useCallback((base64: string) => {
+    userPhotoRef.current = base64; // Persist for generation context
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(JSON.stringify({
         clientContent: {
@@ -200,8 +204,12 @@ export function useGeminiOrchestrator({ onTranscript, onAudioChunk, onImageReady
   return { connected, startAgent, disconnect: () => socketRef.current?.close(), sendText, sendAudio, sendFitForCritique, sendGarmentPhoto };
 }
 
-async function callNanoBananaAPI(prompt: string): Promise<string> {
-  const res = await fetch('/api/nano-banana', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
+async function callNanoBananaAPI(prompt: string, userFrameBase64: string | null): Promise<string> {
+  const res = await fetch('/api/nano-banana', { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify({ prompt, userFrameBase64 }) 
+  });
   if (!res.ok) throw new Error('Nano Banana 2 failed');
   const data = await res.json();
   return data.url;
