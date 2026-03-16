@@ -1,18 +1,18 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback, use } from 'react';
-import { useGeminiLive } from '@/hooks/useGeminiLive';
 import { useAudioCapture } from '@/hooks/useAudioCapture';
 import { useAudioPlayback } from '@/hooks/useAudioPlayback';
+import { useGeminiOrchestrator } from '@/hooks/useGeminiLiveSDK';
 import ChatPanel, { ChatMessage } from '@/components/ChatPanel';
 import ActiveCallUI from '@/components/ActiveCallUI';
 import { PERSONAS, Persona } from '@/lib/agents';
 import { useRouter } from 'next/navigation';
-import { 
-  PERSONA_SYSTEM_PROMPT, 
-  TONY_SYSTEM_PROMPT, 
-  GINA_SYSTEM_PROMPT, 
-  ARIA_SYSTEM_PROMPT 
+import {
+  PERSONA_SYSTEM_PROMPT,
+  TONY_SYSTEM_PROMPT,
+  GINA_SYSTEM_PROMPT,
+  ARIA_SYSTEM_PROMPT
 } from '@/lib/prompts';
 
 const SYSTEM_PROMPTS: Record<string, string> = {
@@ -25,7 +25,7 @@ const SYSTEM_PROMPTS: Record<string, string> = {
 export default function AgentPage({ params }: { params: Promise<{ agentId: string }> }) {
   const { agentId } = use(params);
   const router = useRouter();
-  
+
   // ── Session State ─────────────────────────────────────────
   const [sessionActive, setSessionActive] = useState(false);
   const [sessionReady, setSessionReady] = useState(false);
@@ -40,6 +40,12 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
   const [micEnabled, setMicEnabled] = useState(false);
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
 
+  // 🔥 STALE CLOSURE FIX: This ensures the audio hook always knows if the mic is unmuted
+  const micEnabledRef = useRef(micEnabled);
+  useEffect(() => {
+    micEnabledRef.current = micEnabled;
+  }, [micEnabled]);
+
   // ── Audio Ref for VRM Lipsync ────────────────────────────
   const agentVolumeRef = useRef({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
 
@@ -47,49 +53,61 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
   const { playChunk, stopPlayback, cleanup, initAudio } = useAudioPlayback((visemes) => {
     agentVolumeRef.current = visemes;
   });
-  
+
+  // ── SDK Implementation ───────────────────────────────────
   const {
     connected,
-    connect,
+    startAgent,
     disconnect,
-    sendAudio,
+    sendFitForCritique,
+    sendGarmentPhoto, // EXTRACTED PROPERLY
     sendText,
-  } = useGeminiLive({
+    sendAudio,
+  } = useGeminiOrchestrator({
     onTranscript: (text, role) => {
       setMessages(prev => {
         const lastMsg = prev[prev.length - 1];
-        if (lastMsg && lastMsg.role === role && lastMsg.text === text) return prev;
-        
+        if (lastMsg && lastMsg.role === role && !lastMsg.imageBase64) {
+          return [
+            ...prev.slice(0, -1),
+            { ...lastMsg, text: lastMsg.text + text }
+          ];
+        }
         return [...prev, {
           id: `msg-${Date.now()}`,
           text,
-          role,
+          role: role as any,
           timestamp: Date.now()
         }];
       });
     },
-    onThought: (text) => {
+    onAudioChunk: (base64: string) => {
+      const binary = window.atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      if (bytes.length > 0) {
+        playChunk(new Int16Array(bytes.buffer));
+      }
+    },
+    onImageReady: (url) => {
+      console.log('[UI] Nano Banana 2 Image Received:', url);
       setMessages(prev => [...prev, {
-        id: `msg-thought-${Date.now()}`,
-        text: `**inner thoughts** ${text}`,
+        id: `img-${Date.now()}`,
+        text: "I've generated a fashion sketch for you.",
         role: 'agent',
         timestamp: Date.now(),
-        thought: text
+        imageBase64: url
       }]);
     },
-    onThinking: (status) => setThinkingStatus(status || null),
-    onError: (msg) => console.error(`[Agent Error] ${msg}`),
-    onAudioOut: (audioBase64) => {
-      playChunk(audioBase64);
-    },
-    onAgentGesture: (animation) => {
-      setAgentGesture(animation);
-      setTimeout(() => setAgentGesture(null), 100);
-    }
+    onThinking: (status) => setThinkingStatus(status || null), // WIRED UP
+    onError: (msg) => console.error(`[Agent SDK Error] ${msg}`)
   });
 
   const { startCapture, stopCapture } = useAudioCapture((base64) => {
-    if (micEnabled && connected) sendAudio(base64);
+    // 🔥 Drop the 'connected' check so React doesn't bottleneck the mic!
+    if (micEnabledRef.current) sendAudio(base64);
   });
 
   // ── Initialize Session on Mount ──────────────────────────
@@ -103,24 +121,28 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
     setActivePersona(persona);
     setSessionActive(true);
 
-    const apiKey = process.env.NEXT_PUBLIC_GEMINI_API_KEY || '';
-    const systemInstruction = SYSTEM_PROMPTS[agentId] || PERSONA_SYSTEM_PROMPT;
-
-    connect(apiKey, { systemInstruction }).then(() => {
-      setSessionReady(true);
-    });
-
-    initAudio();
-    startCapture();
-    setMicEnabled(true);
-
     return () => {
       disconnect();
       stopCapture();
       stopPlayback();
       cleanup();
     };
-  }, [agentId, router, connect, disconnect, initAudio, stopCapture, stopPlayback, cleanup, startCapture]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, router]);
+
+  const handleStartSession = async () => {
+    console.log('[UI] 🔓 Unlocking Audio & Connecting Agent SDK...');
+    try {
+      await initAudio();
+      await startAgent(agentId as any);
+
+      setSessionReady(true);
+      startCapture();
+      setMicEnabled(true);
+    } catch (err) {
+      console.error('[UI] Session Start Failed:', err);
+    }
+  };
 
   const handleEndSession = useCallback(() => {
     router.push('/');
@@ -159,19 +181,17 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         const base64Data = dataUrl.split(',')[1];
         setUserPhoto(base64Data);
-        // sendVideoFrame(base64Data); // Future work: native video support
-        
-        setMessages(prev => prev.map(m => 
-          m.id === tempId ? { ...m, text: "Here is my photo.", imageBase64: base64Data } : m
+
+        sendFitForCritique(base64Data);
+
+        setMessages(prev => prev.map(m =>
+          m.id === tempId ? { ...m, text: "Here is my photo. What do you think?", imageBase64: base64Data } : m
         ));
         setThinkingStatus(null);
-        sendText(activePersona?.mode === 'designer' 
-          ? "I just uploaded a reference sketch. Could you analyze it?"
-          : "Hey bestie! I just uploaded a photo. What do you think?");
       }
     };
     img.src = URL.createObjectURL(file);
-  }, [sendText, activePersona]);
+  }, [sendFitForCritique]);
 
   const handleGarmentPhoto = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -201,17 +221,17 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
         ctx.drawImage(img, 0, 0, w, h);
         const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
         const base64Data = dataUrl.split(',')[1];
-        // sendGarmentPhoto(base64Data); // Future work: native multimodal support
-        
-        setMessages(prev => prev.map(m => 
+
+        sendGarmentPhoto(base64Data);
+
+        setMessages(prev => prev.map(m =>
           m.id === tempId ? { ...m, text: "Can you try this on me?", imageBase64: base64Data } : m
         ));
         setThinkingStatus(null);
-        sendText("Wait, what about this specific item?");
       }
     };
     img.src = URL.createObjectURL(file);
-  }, [sendText]);
+  }, [sendGarmentPhoto]);
 
   const handleSendMessage = useCallback((text: string) => {
     sendText(text);
@@ -223,19 +243,18 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
     }]);
   }, [sendText]);
 
+  // REPLACE YOUR CURRENT useEffect WITH THIS:
   useEffect(() => {
     if (isChatExpanded) {
-      stopPlayback();
-      cleanup();
-      stopCapture();
+      // Chat is open: Stop forwarding audio, but DON'T kill the mic stream
       setMicEnabled(false);
-    } else {
-      initAudio();
+      // Optional: Stop current playback so agent goes quiet when you type
+      stopPlayback();
+    } else if (sessionReady) {
+      // Chat is closed: Resume forwarding audio to Gemini
       setMicEnabled(true);
-      startCapture();
     }
-  }, [isChatExpanded, stopPlayback, cleanup, stopCapture, initAudio, startCapture]);
-
+  }, [isChatExpanded, sessionReady, stopPlayback]);
   if (!activePersona) return null;
 
   return (
@@ -246,6 +265,33 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
         <div className="scan-overlay">
           <div className="scan-line" />
           <div className="scan-line" />
+        </div>
+      )}
+
+      {!sessionReady && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(40px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: '24px', color: '#fff', textAlign: 'center'
+        }}>
+          <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '60px', marginBottom: '12px' }} />
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.05em' }}>
+            READY TO MEET {activePersona?.name.toUpperCase()}?
+          </h2>
+          <p style={{ opacity: 0.5, fontSize: '0.9rem', maxWidth: '300px' }}>
+            Press the button below to initialize the high-fidelity 3D session.
+          </p>
+          <button
+            onClick={handleStartSession}
+            style={{
+              background: '#cefe00', color: '#000', border: 'none',
+              padding: '16px 48px', borderRadius: '14px', fontSize: '1rem',
+              fontWeight: 800, cursor: 'pointer', transition: 'all 0.3s',
+              boxShadow: '0 8px 32px rgba(206, 254, 0, 0.3)'
+            }}>
+            START EXPERIENCE
+          </button>
         </div>
       )}
 
@@ -270,20 +316,20 @@ export default function AgentPage({ params }: { params: Promise<{ agentId: strin
 
           <div style={{ width: isChatExpanded ? '100%' : '440px', height: '100%', transition: 'all 0.4s var(--ease-out-expo)', zIndex: 30, position: 'absolute', right: 0, top: 0 }}>
             <ChatPanel
-               messages={messages}
-               onSendMessage={handleSendMessage}
-               isOpen={true}
-               onToggle={() => {}}
-               isExpanded={isChatExpanded}
-               onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
-               personaName={activePersona.name}
-               canTryOn={!!userPhoto}
-               micEnabled={micEnabled}
-               onToggleMic={handleToggleMic}
-               onUploadPhoto={handleUserPhoto}
-               onTryFit={handleGarmentPhoto}
-               onEndSession={handleEndSession}
-               onRequestStudioEdit={() => {}}
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              isOpen={true}
+              onToggle={() => { }}
+              isExpanded={isChatExpanded}
+              onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
+              personaName={activePersona.name}
+              canTryOn={!!userPhoto}
+              micEnabled={micEnabled}
+              onToggleMic={handleToggleMic}
+              onUploadPhoto={handleUserPhoto}
+              onTryFit={handleGarmentPhoto}
+              onEndSession={handleEndSession}
+              onRequestStudioEdit={() => { }}
             />
           </div>
         </div>

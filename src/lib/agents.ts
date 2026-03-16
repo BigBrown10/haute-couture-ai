@@ -1,3 +1,10 @@
+import { 
+  PERSONA_SYSTEM_PROMPT, 
+  TONY_SYSTEM_PROMPT, 
+  GINA_SYSTEM_PROMPT, 
+  ARIA_SYSTEM_PROMPT 
+} from './prompts';
+
 export type PersonaId = 'despina' | 'gina' | 'tony' | 'aria';
 
 export interface Persona {
@@ -48,3 +55,10 @@ export const PERSONAS: Persona[] = [
         mode: 'designer'
     }
 ];
+
+export const HAUTE_AGENTS = {
+  despina: { voice: 'Aoide', instruction: PERSONA_SYSTEM_PROMPT },
+  tony: { voice: 'Charon', instruction: TONY_SYSTEM_PROMPT },
+  gina: { voice: 'Kore', instruction: GINA_SYSTEM_PROMPT },
+  aria: { voice: 'Puck', instruction: ARIA_SYSTEM_PROMPT }
+};

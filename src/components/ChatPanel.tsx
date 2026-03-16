@@ -402,7 +402,7 @@ export default function ChatPanel({
                                 {msg.imageBase64 && (
                                     <div style={{ marginTop: '6px' }}>
                                         <img
-                                            src={`data:image/png;base64,${msg.imageBase64}`}
+                                            src={msg.imageBase64.startsWith('data:') ? msg.imageBase64 : `data:image/png;base64,${msg.imageBase64}`}
                                             alt={msg.imageCaption || 'Generated outfit'}
                                             onClick={() => setLightboxImage(msg.imageBase64!)}
                                             style={{

@@ -41,24 +41,24 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
         return ls?.audioContext || null;
     }, []);
 
-    const playChunk = useCallback((audioBase64: string) => {
+    const playChunk = useCallback(async (pcmData: Int16Array) => {
         try {
             const ctx = getContext();
             const ls = lipsyncRef.current as any;
             if (!ctx || !ls) return;
 
-            const binaryStr = atob(audioBase64);
-            const bytes = new Uint8Array(binaryStr.length);
-            for (let i = 0; i < binaryStr.length; i++) {
-                bytes[i] = binaryStr.charCodeAt(i);
-            }
-            const int16 = new Int16Array(bytes.buffer);
-
-            const float32 = new Float32Array(int16.length);
-            for (let i = 0; i < int16.length; i++) {
-                float32[i] = int16[i] / 32768;
+            // 1. Explicitly resume to bypass browser-level suspension
+            if (ctx.state === 'suspended') {
+                await ctx.resume();
             }
 
+            // 2. Convert Int16 PCM to Float32 for Web Audio
+            const float32 = new Float32Array(pcmData.length);
+            for (let i = 0; i < pcmData.length; i++) {
+                float32[i] = pcmData[i] / 32768;
+            }
+
+            // 3. Create buffer at strict 24kHz
             const audioBuffer = ctx.createBuffer(1, float32.length, PLAYBACK_SAMPLE_RATE);
             audioBuffer.getChannelData(0).set(float32);
 
@@ -98,10 +98,8 @@ export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void)
                         try {
                             ls.processAudio();
                             const vol = ls.features?.volume || 0;
-                            const activeViseme = ls.viseme; // e.g., 'viseme_aa'
+                            const activeViseme = ls.viseme; 
 
-                            // Pass 1 for the active viseme, 0 for the rest.
-                            // vrmstage.tsx uses lerp() to smoothly glide between these!
                             onVolumeChange({
                                 volume: Math.min(vol * 1.5, 1.0),
                                 a: activeViseme === 'viseme_aa' ? 1.0 : 0,

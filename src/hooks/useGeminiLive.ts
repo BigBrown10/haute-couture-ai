@@ -1,176 +1,118 @@
 'use client';
-
-import { useState, useCallback, useRef, useEffect } from 'react';
-import { TOOLS, executeTool } from '@/lib/tools';
-import { ChatMessage } from '@/lib/types';
+import { useRef, useCallback, useState, useEffect } from 'react';
 
 interface UseGeminiLiveProps {
-    onTranscript: (text: string, role: 'agent' | 'user') => void;
-    onThought: (text: string) => void;
-    onThinking: (status: string) => void;
-    onAudioOut: (audioBase64: string) => void; // We keep Base64 to match existing playback hook
-    onAgentGesture: (animation: string) => void;
-    onError: (msg: string) => void;
+  onTranscript: (text: string, role: 'agent' | 'user') => void;
+  onAudioChunk: (chunk: Int16Array) => void;
+  onThinking?: (status: string) => void;
+  onError?: (msg: string) => void;
 }
 
 /**
- * useGeminiLive Hook
- * Connects directly to the Multimodal Live API via WebSockets.
- * Handles the bidirectional audio/text stream and ADK tool calling.
+ * useGeminiLive Hook - [v1alpha Native Audio 2.5 Final]
+ * Optimized for Gemini 2.5 Flash Native Audio with lipsync bridge.
  */
-export function useGeminiLive({
-    onTranscript,
-    onThought,
-    onThinking,
-    onAudioOut,
-    onAgentGesture,
-    onError
-}: UseGeminiLiveProps) {
-    const socketRef = useRef<WebSocket | null>(null);
-    const [connected, setConnected] = useState(false);
+export function useGeminiLive({ onTranscript, onAudioChunk, onThinking, onError }: UseGeminiLiveProps) {
+  const socketRef = useRef<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
 
-    const connect = useCallback(async (apiKey: string, config: any) => {
-        if (socketRef.current) return;
+  const connect = useCallback(async (apiKey: string) => {
+    if (socketRef.current) socketRef.current.close();
 
-        // Multimodal Live API Endpoint (v1alpha for current dev features)
-        const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidirectionalGenerateContent?key=${apiKey}`;
+    // 1. STABLE 2026 BIDI ENDPOINT
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+    console.log('[GeminiLive] 📡 Connecting to v1alpha BidiGenerateContent...');
+    
+    const ws = new WebSocket(url);
+    socketRef.current = ws;
 
-        onThinking('Connecting to Gemini Live...');
-        
-        try {
-            const ws = new WebSocket(url);
-            socketRef.current = ws;
-
-            ws.onopen = () => {
-                setConnected(true);
-                onThinking('');
-                
-                // Initial setup message
-                const setupMessage = {
-                    setup: {
-                        model: 'models/gemini-2.0-flash-exp',
-                        generation_config: {
-                            response_modalities: ['AUDIO'],
-                        },
-                        system_instruction: {
-                            parts: [{ text: config.systemInstruction }]
-                        },
-                        tools: [{ function_declarations: TOOLS }]
-                    }
-                };
-                ws.send(JSON.stringify(setupMessage));
-            };
-
-            ws.onmessage = async (event) => {
-                const data = JSON.parse(event.data);
-                
-                // Handle Server Content (Transcript / Audio)
-                if (data.serverContent) {
-                    const { modelTurn, turnComplete, interrupted } = data.serverContent;
-                    
-                    if (interrupted) {
-                        // Handle interruption logic if needed
-                    }
-
-                    if (modelTurn) {
-                        for (const part of modelTurn.parts) {
-                            if (part.text) {
-                                // Extract thoughts if formatted with **
-                                const thoughtMatch = part.text.match(/\*\*([\s\S]*?)\*\*/);
-                                if (thoughtMatch) {
-                                    onThought(thoughtMatch[1]);
-                                }
-                                onTranscript(part.text, 'agent');
-                            }
-                            if (part.inlineData && part.inlineData.mimeType === 'audio/pcm;rate=24000') {
-                                onAudioOut(part.inlineData.data);
-                            }
-                        }
-                    }
-                }
-
-                // Handle Tool Calls (ADK Pattern)
-                if (data.toolCall) {
-                    for (const call of data.toolCall.functionCalls) {
-                        const result = await executeTool(call.name, call.args, {
-                            onThinking,
-                            onAgentGesture,
-                            onGeneratedOutfit: (img: string | null, cap: string) => {
-                                // This would normally update the message list, but since tool results 
-                                // are sent back to Gemini, we just signal it.
-                            }
-                        });
-                        
-                        // Send Tool Response
-                        const response = {
-                            tool_response: {
-                                function_responses: [{
-                                    name: call.name,
-                                    response: result,
-                                    id: call.id
-                                }]
-                            }
-                        };
-                        ws.send(JSON.stringify(response));
-
-                        // If tool was trigger_gesture, notify UI
-                        if (call.name === 'trigger_gesture') {
-                            onAgentGesture(call.args.animation);
-                        }
-                    }
-                }
-            };
-
-            ws.onerror = (err) => {
-                console.error('[GeminiLive] Connection error:', err);
-                onError('WebSocket connection failed');
-            };
-
-            ws.onclose = () => {
-                setConnected(false);
-                socketRef.current = null;
-            };
-
-        } catch (err) {
-            console.error('[GeminiLive] Setup failed:', err);
-            onError('Failed to initialize Gemini Live');
+    ws.onopen = () => {
+      console.log('[GeminiLive] 📡 WebSocket Open. Syncing Setup...');
+      setConnected(true);
+      
+      const setup = {
+        setup: {
+          // 2. THE MODEL STRING FROM YOUR CONSOLE FETCH
+          model: 'models/gemini-2.5-flash-native-audio-latest', 
+          generationConfig: { responseModalities: ['AUDIO'] }
         }
-    }, [onThought, onTranscript, onAudioOut, onThinking, onAgentGesture, onError]);
+      };
+      ws.send(JSON.stringify(setup));
+    };
 
-    const disconnect = useCallback(() => {
-        if (socketRef.current) {
-            socketRef.current.close();
-            socketRef.current = null;
+    ws.onmessage = async (event) => {
+      try {
+        const text = typeof event.data === 'string' ? event.data : await (event.data as Blob).text();
+        const data = JSON.parse(text);
+        
+        if (data.setupComplete) {
+          console.log('[GeminiLive] 🎊 SETUP ACKNOWLEDGED.');
+          onThinking?.('Online');
         }
-        setConnected(false);
-    }, []);
 
-    const sendAudio = useCallback((base64: string) => {
-        if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-        
-        socketRef.current.send(JSON.stringify({
-            realtime_input: {
-                media_chunks: [{
-                    mime_type: 'audio/pcm;rate=16000',
-                    data: base64
-                }]
+        if (data.serverContent?.modelTurn?.parts) {
+          data.serverContent.modelTurn.parts.forEach((p: any) => {
+            if (p.text) onTranscript(p.text, 'agent');
+            if (p.inlineData) {
+              // Convert Base64 Audio to PCM for the Wawa Player (Lipsync bridge)
+              const b = atob(p.inlineData.data);
+              const u = new Uint8Array(b.length);
+              for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+              onAudioChunk(new Int16Array(u.buffer));
             }
-        }));
-    }, []);
+          });
+        }
+      } catch (e) {
+        console.error('[GeminiLive] Message processing error:', e);
+      }
+    };
 
-    const sendText = useCallback((text: string) => {
-        if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) return;
-        
-        socketRef.current.send(JSON.stringify({
-            client_content: {
-                turns: [{
-                    role: 'user',
-                    parts: [{ text }]
-                }],
-                turn_complete: true
-            }
-        }));
-    }, []);
+    ws.onclose = (e) => {
+      console.log(`[GeminiLive] 🔌 Closed | Code: ${e.code}`);
+      setConnected(false);
+      socketRef.current = null;
+    };
 
-    return { connected, connect, disconnect, sendAudio, sendText };
+    ws.onerror = (e) => {
+      console.error('[GeminiLive] WebSocket Error:', e);
+      onError?.('Connection Error');
+    };
+  }, [onTranscript, onAudioChunk, onThinking, onError]);
+
+  const disconnect = useCallback(() => {
+    socketRef.current?.close();
+  }, []);
+
+  const sendAudio = useCallback((base64: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        realtimeInput: {
+          mediaChunks: [{
+            mimeType: 'audio/pcm;rate=16000',
+            data: base64
+          }]
+        }
+      }));
+    }
+  }, []);
+
+  const sendText = useCallback((text: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        clientContent: {
+          turns: [{
+            role: 'user',
+            parts: [{ text }]
+          }],
+          turnComplete: true
+        }
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => socketRef.current?.close();
+  }, []);
+
+  return { connected, connect, disconnect, sendAudio, sendText };
 }

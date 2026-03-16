@@ -1,144 +1,118 @@
 'use client';
-
-import { useRef, useCallback, useState } from 'react';
+import { useRef, useCallback, useState, useEffect } from 'react';
 
 /**
  * Hook to capture microphone audio as PCM 16-bit 16kHz mono chunks.
- *
- * Uses AudioWorklet for low-latency capture in the audio thread,
- * then resamples from the browser's native sample rate (usually 48kHz)
- * down to 16kHz as required by the Gemini Live API.
+ * Uses an INLINE AudioWorklet for bulletproof, self-contained processing.
  */
-export function useAudioCapture(onAudioChunk: (base64: string) => void, onVolumeChange?: (volume: number) => void) {
-    const audioContextRef = useRef<AudioContext | null>(null);
-    const workletNodeRef = useRef<AudioWorkletNode | null>(null);
-    const analyserRef = useRef<AnalyserNode | null>(null);
-    const streamRef = useRef<MediaStream | null>(null);
-    const animationFrameRef = useRef<number | null>(null);
-    const [isCapturing, setIsCapturing] = useState(false);
+export function useAudioCapture(onAudioData: (base64: string) => void, onVolumeChange?: (volume: number) => void) {
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const workletRef = useRef<AudioWorkletNode | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
-    const startCapture = useCallback(async () => {
-        try {
-            const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    sampleRate: { ideal: 16000 },
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                },
-            });
-            streamRef.current = stream;
+  const onAudioDataRef = useRef(onAudioData);
+  const onVolumeRef = useRef(onVolumeChange);
 
-            const audioContext = new AudioContext({ sampleRate: 16000 });
-            audioContextRef.current = audioContext;
+  useEffect(() => {
+    onAudioDataRef.current = onAudioData;
+    onVolumeRef.current = onVolumeChange;
+  }, [onAudioData, onVolumeChange]);
 
-            const nativeSampleRate = audioContext.sampleRate;
+  const startCapture = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: { ideal: 16000 },
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true
+        }
+      });
+      streamRef.current = stream;
 
-            // Add Analyser for volume detection
-            const analyser = audioContext.createAnalyser();
-            analyser.fftSize = 256;
-            analyserRef.current = analyser;
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const context = new AudioContextClass({ sampleRate: 16000 }); // Force 16kHz
 
-            // Guard: check if we've been stopped during stream acquisition
-            if (audioContextRef.current !== audioContext) return;
+      if (context.state === 'suspended') {
+        await context.resume();
+      }
+      audioContextRef.current = context;
 
-            await audioContext.audioWorklet.addModule('/audio-worklet-processor.js');
-
-            // Guard: check again after dynamic module loading
-            if (audioContextRef.current !== audioContext) return;
-            if (audioContext.state === 'suspended') await audioContext.resume();
-
-            const source = audioContext.createMediaStreamSource(stream);
-            const workletNode = new AudioWorkletNode(audioContext, 'pcm-capture-processor');
-            workletNodeRef.current = workletNode;
-
-            workletNode.port.onmessage = (event: MessageEvent<ArrayBuffer>) => {
-                const pcmBuffer = event.data;
-                const base64 = nativeSampleRate !== 16000
-                    ? arrayBufferToBase64(resamplePCM(pcmBuffer, nativeSampleRate, 16000))
-                    : arrayBufferToBase64(pcmBuffer);
-                onAudioChunk(base64);
-            };
-
-            source.connect(analyser); // Connect to analyser
-            analyser.connect(workletNode);
-
-            // Volume analysis loop
-            if (onVolumeChange) {
-                const dataArray = new Uint8Array(analyser.frequencyBinCount);
-                const updateVolume = () => {
-                    analyser.getByteFrequencyData(dataArray);
-                    let sum = 0;
-                    for (let i = 0; i < dataArray.length; i++) {
-                        sum += dataArray[i];
-                    }
-                    const average = sum / dataArray.length;
-                    onVolumeChange(average / 128); // Normalized 0-1
-                    animationFrameRef.current = requestAnimationFrame(updateVolume);
-                };
-                updateVolume();
+      // 🔥 THE BULLETPROOF INLINE WORKLET: No external files to break!
+      const workletCode = `
+        class PCMCaptureProcessor extends AudioWorkletProcessor {
+          process(inputs) {
+            const input = inputs[0];
+            if (!input || !input[0]) return true;
+            
+            const channelData = input[0];
+            const pcm16 = new Int16Array(channelData.length);
+            let sum = 0;
+            
+            for (let i = 0; i < channelData.length; i++) {
+              sum += Math.abs(channelData[i]);
+              const s = Math.max(-1, Math.min(1, channelData[i]));
+              pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
             }
-
-            setIsCapturing(true);
-        } catch (err) {
-            console.error('[AudioCapture] Failed to start:', err);
-            setIsCapturing(false);
+            
+            this.port.postMessage({ buffer: pcm16.buffer, volume: sum / channelData.length }, [pcm16.buffer]);
+            return true;
+          }
         }
-    }, [onAudioChunk, onVolumeChange]);
+        registerProcessor('pcm-capture-processor', PCMCaptureProcessor);
+      `;
 
-    const stopCapture = useCallback(() => {
-        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
-        if (workletNodeRef.current) {
-            workletNodeRef.current.port.postMessage('stop');
-            workletNodeRef.current.disconnect();
-            workletNodeRef.current = null;
+      const blob = new Blob([workletCode], { type: 'application/javascript' });
+      const workletUrl = URL.createObjectURL(blob);
+      await context.audioWorklet.addModule(workletUrl);
+
+      const source = context.createMediaStreamSource(stream);
+      const workletNode = new AudioWorkletNode(context, 'pcm-capture-processor');
+      workletRef.current = workletNode;
+
+      workletNode.port.onmessage = (event) => {
+        const { buffer, volume } = event.data;
+
+        if (onVolumeRef.current) {
+          onVolumeRef.current(volume);
         }
-        if (analyserRef.current) analyserRef.current.disconnect();
-        if (audioContextRef.current) {
-            audioContextRef.current.close().catch(() => { });
-            audioContextRef.current = null;
+
+        const uint8 = new Uint8Array(buffer);
+        let binary = '';
+        for (let i = 0; i < uint8.byteLength; i++) {
+          binary += String.fromCharCode(uint8[i]);
         }
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach((t) => t.stop());
-            streamRef.current = null;
+
+        if (onAudioDataRef.current) {
+          onAudioDataRef.current(window.btoa(binary));
         }
-        setIsCapturing(false);
-    }, []);
+      };
 
-    return { startCapture, stopCapture, isCapturing };
-}
-
-/**
- * Resample 16-bit PCM from one sample rate to another.
- */
-function resamplePCM(buffer: ArrayBuffer, fromRate: number, toRate: number): ArrayBuffer {
-    const input = new Int16Array(buffer);
-    const ratio = fromRate / toRate;
-    const outputLength = Math.round(input.length / ratio);
-    const output = new Int16Array(outputLength);
-
-    for (let i = 0; i < outputLength; i++) {
-        const srcIndex = i * ratio;
-        const srcIndexFloor = Math.floor(srcIndex);
-        const srcIndexCeil = Math.min(srcIndexFloor + 1, input.length - 1);
-        const frac = srcIndex - srcIndexFloor;
-
-        // Linear interpolation
-        output[i] = Math.round(input[srcIndexFloor] * (1 - frac) + input[srcIndexCeil] * frac);
+      source.connect(workletNode);
+      workletNode.connect(context.destination);
+      setIsCapturing(true);
+    } catch (err) {
+      console.error('[AudioCapture] Failed to start microphone:', err);
     }
+  }, []);
 
-    return output.buffer;
-}
-
-/**
- * Convert ArrayBuffer to Base64 string.
- */
-function arrayBufferToBase64(buffer: ArrayBuffer): string {
-    const bytes = new Uint8Array(buffer);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i++) {
-        binary += String.fromCharCode(bytes[i]);
+  const stopCapture = useCallback(() => {
+    if (workletRef.current) {
+      workletRef.current.port.postMessage('stop');
+      workletRef.current.disconnect();
+      workletRef.current = null;
     }
-    return btoa(binary);
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    setIsCapturing(false);
+  }, []);
+
+  return { startCapture, stopCapture, isCapturing };
 }

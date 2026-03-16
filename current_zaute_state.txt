@@ -1,0 +1,3906 @@
+This file is a merged representation of a subset of the codebase, containing specifically included files, combined into a single document by Repomix.
+
+<file_summary>
+This section contains a summary of this file.
+
+<purpose>
+This file contains a packed representation of a subset of the repository's contents that is considered the most important context.
+It is designed to be easily consumable by AI systems for analysis, code review,
+or other automated processes.
+</purpose>
+
+<file_format>
+The content is organized as follows:
+1. This summary section
+2. Repository information
+3. Directory structure
+4. Repository files (if enabled)
+5. Multiple file entries, each consisting of:
+  - File path as an attribute
+  - Full contents of the file
+</file_format>
+
+<usage_guidelines>
+- This file should be treated as read-only. Any changes should be made to the
+  original repository files, not this packed version.
+- When processing this file, use the file path to distinguish
+  between different files in the repository.
+- Be aware that this file may contain sensitive information. Handle it with
+  the same level of security as you would the original repository.
+</usage_guidelines>
+
+<notes>
+- Some files may have been excluded based on .gitignore rules and Repomix's configuration
+- Binary files are not included in this packed representation. Please refer to the Repository Structure section for a complete list of file paths, including binary files
+- Only files matching these patterns are included: src/hooks/**/*.ts, src/hooks/**/*.tsx, src/components/**/*.tsx, src/app/**/*.tsx, public/*.js
+- Files matching patterns in .gitignore are excluded
+- Files matching default ignore patterns are excluded
+- Files are sorted by Git change count (files with more changes are at the bottom)
+</notes>
+
+</file_summary>
+
+<directory_structure>
+public/audio-worklet-processor.js
+src/app/agent/[agentId]/page.tsx
+src/app/layout.tsx
+src/app/page.tsx
+src/components/ActiveCallUI.tsx
+src/components/BackgroundPicker.tsx
+src/components/BrutalHero.tsx
+src/components/CameraFeed.tsx
+src/components/CatalogLabel.tsx
+src/components/ChatPanel.tsx
+src/components/FeatureGrid.tsx
+src/components/LandingOverlay.tsx
+src/components/Marquee.tsx
+src/components/OutfitGallery.tsx
+src/components/RotatingHeroText.tsx
+src/components/SerratedDivider.tsx
+src/components/SplashScreen.tsx
+src/components/StickyNote.tsx
+src/components/VRMStage_Backup.tsx
+src/components/VRMStage.tsx
+src/hooks/useAudioCapture.ts
+src/hooks/useAudioPlayback.ts
+src/hooks/useGeminiLive.ts
+src/hooks/useGeminiLiveSDK.ts
+src/hooks/useSocketConnection.ts
+</directory_structure>
+
+<files>
+This section contains the contents of the repository's files.
+
+<file path="src/hooks/useGeminiLiveSDK.ts">
+'use client';
+import { useRef, useCallback, useState, useEffect } from 'react';
+import { HAUTE_AGENTS } from '@/lib/agents';
+
+interface UseGeminiOrchestratorProps {
+  onTranscript: (text: string, role: string) => void;
+  onAudioChunk: (base64: string) => void;
+  onImageReady: (url: string) => void;
+  onThinking?: (status: string) => void;
+  onError?: (msg: string) => void;
+}
+
+export function useGeminiOrchestrator({ onTranscript, onAudioChunk, onImageReady, onThinking, onError }: UseGeminiOrchestratorProps) {
+  const socketRef = useRef<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+  const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
+
+  const startAgent = useCallback(async (agentKey: string) => {
+    if (socketRef.current) socketRef.current.close();
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${process.env.NEXT_PUBLIC_GEMINI_API_KEY}`;
+    const ws = new WebSocket(url);
+    socketRef.current = ws;
+
+    ws.onopen = () => {
+      setConnected(true);
+      const persona = (HAUTE_AGENTS as any)[agentKey];
+      
+      ws.send(JSON.stringify({
+        setup: {
+          model: "models/gemini-2.5-flash-native-audio-latest",
+          systemInstruction: { parts: [{ text: persona?.instruction || 'AI Fashion Assistant' }] },
+          generationConfig: {
+            responseModalities: ["AUDIO"], 
+            speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: persona?.voice || 'Aoide' } } }
+          },
+          tools: [{
+            functionDeclarations: [
+              {
+                name: 'generate_outfit',
+                description: 'Generate a Virtual Try-On image overlay. Call this when user asks to see outfit recommendation.',
+                parameters: {
+                  type: 'OBJECT',
+                  properties: {
+                    prompt: { type: 'STRING', description: 'Detailed description of the NEW outfit.' },
+                    event_context: { type: 'STRING', description: 'The event or occasion.' }
+                  },
+                  required: ['prompt', 'event_context']
+                }
+              },
+              {
+                name: 'generate_fashion_sketch',
+                description: 'Generate a high-fashion sketch or runway concept.',
+                parameters: {
+                  type: 'OBJECT',
+                  properties: {
+                    prompt: { type: 'STRING', description: 'Detailed description of the sketch.' },
+                    concept_name: { type: 'STRING', description: 'Name of concept.' }
+                  },
+                  required: ['prompt', 'concept_name']
+                }
+              }
+            ]
+          }]
+        }
+      }));
+
+      heartbeatRef.current = setInterval(() => {
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({ clientContent: { turns: [], turnComplete: false } }));
+        }
+      }, 20000);
+    };
+
+    ws.onmessage = async (event) => {
+      try {
+        const text = typeof event.data === 'string' ? event.data : await (event.data as Blob).text();
+        const data = JSON.parse(text);
+        
+        if (data.setupComplete) {
+          onThinking?.('');
+          ws.send(JSON.stringify({
+            clientContent: { turns: [{ role: 'user', parts: [{ text: 'Hey! Introduce yourself.' }] }], turnComplete: true }
+          }));
+          return;
+        }
+
+        if (data.serverContent?.modelTurn?.parts) {
+          data.serverContent.modelTurn.parts.forEach((part: any) => {
+            if (part.text) onTranscript(part.text, 'agent');
+            if (part.inlineData?.data) onAudioChunk(part.inlineData.data);
+            
+            if (part.functionCall) {
+              const call = part.functionCall;
+              const callId = call.id;
+              const prompt = call.args.prompt;
+              
+              onThinking?.('✨ Generating vision...');
+              
+              (async () => {
+                try {
+                  const imageUrl = await callNanoBananaAPI(prompt); 
+                  onImageReady(imageUrl);
+                  onThinking?.('');
+                  
+                  if (ws.readyState === WebSocket.OPEN) {
+                    ws.send(JSON.stringify({
+                      toolResponse: {
+                        functionResponses: [{ id: callId, name: call.name, response: { success: true, url: imageUrl } }]
+                      }
+                    }));
+                    ws.send(JSON.stringify({ 
+                      clientContent: { turns: [{ role: 'user', parts: [{ text: 'Image ready! Tell me about it.' }] }], turnComplete: true } 
+                    }));
+                  }
+                } catch (err) {
+                  console.error(err);
+                  onThinking?.('');
+                }
+              })();
+            }
+          });
+        }
+      } catch (e) { console.error(e); }
+    };
+
+    ws.onclose = () => { setConnected(false); if (heartbeatRef.current) clearInterval(heartbeatRef.current); };
+  }, [onTranscript, onAudioChunk, onImageReady, onThinking]);
+
+  const sendText = useCallback((text: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        clientContent: { turns: [{ role: 'user', parts: [{ text }] }], turnComplete: true }
+      }));
+    }
+  }, []);
+
+  const sendAudio = useCallback((base64: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        realtimeInput: { mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: base64 }] }
+      }));
+    }
+  }, []);
+
+  // PROPER MULTIMODAL IMAGE ROUTING
+  const sendFitForCritique = useCallback((base64: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        clientContent: {
+          turns: [{
+            role: 'user',
+            parts: [
+              { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+              { text: 'I just sent a photo of myself. What do you think?' }
+            ]
+          }],
+          turnComplete: true
+        }
+      }));
+    }
+  }, []);
+
+  // PROPER MULTIMODAL IMAGE ROUTING
+  const sendGarmentPhoto = useCallback((base64: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        clientContent: {
+          turns: [{
+            role: 'user',
+            parts: [
+              { inlineData: { mimeType: 'image/jpeg', data: base64 } },
+              { text: 'I just sent a photo of a garment. Can you critique it?' }
+            ]
+          }],
+          turnComplete: true
+        }
+      }));
+    }
+  }, []);
+
+  // MAKE SURE ALL FUNCTIONS ARE EXPORTED HERE
+  return { connected, startAgent, disconnect: () => socketRef.current?.close(), sendText, sendAudio, sendFitForCritique, sendGarmentPhoto };
+}
+
+async function callNanoBananaAPI(prompt: string): Promise<string> {
+  const res = await fetch('/api/nano-banana', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt }) });
+  if (!res.ok) throw new Error('Nano Banana 2 failed');
+  const data = await res.json();
+  return data.url;
+}
+</file>
+
+<file path="public/audio-worklet-processor.js">
+/**
+ * AudioWorklet Processor — PCM Capture
+ *
+ * Runs in the audio rendering thread. Captures raw audio frames
+ * from the microphone and converts them to 16-bit PCM at the
+ * browser's native sample rate. Resampling to 16kHz is handled
+ * in the main thread before sending to the server.
+ */
+
+class PCMCaptureProcessor extends AudioWorkletProcessor {
+    constructor() {
+        super();
+        this._active = true;
+
+        this.port.onmessage = (event) => {
+            if (event.data === 'stop') {
+                this._active = false;
+            }
+        };
+    }
+
+    process(inputs) {
+        if (!this._active) return false;
+
+        const input = inputs[0];
+        if (!input || !input[0]) return true;
+
+        // Get mono channel (channel 0)
+        const float32Data = input[0];
+
+        // Convert Float32 [-1.0, 1.0] to Int16 [-32768, 32767]
+        const int16Data = new Int16Array(float32Data.length);
+        for (let i = 0; i < float32Data.length; i++) {
+            const s = Math.max(-1, Math.min(1, float32Data[i]));
+            int16Data[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
+        }
+
+        // Send the PCM data to the main thread
+        this.port.postMessage(int16Data.buffer, [int16Data.buffer]);
+
+        return true;
+    }
+}
+
+registerProcessor('pcm-capture-processor', PCMCaptureProcessor);
+</file>
+
+<file path="src/components/BackgroundPicker.tsx">
+'use client';
+
+// The user requested to delete all other backgrounds and leave only the 3D trees (Ahornsteig).
+const BG_PRESETS = [
+    { id: 'outdoor', label: 'Trees Background', file: '/backgrounds/ahornsteig_4k.hdr' }
+];
+
+interface BackgroundPickerProps {
+    selected: string;
+    onSelect: (preset: string) => void;
+}
+
+export default function BackgroundPicker({ selected, onSelect }: BackgroundPickerProps) {
+    // If there is only one preset, we hide the picker UI completely.
+    if (BG_PRESETS.length <= 1) return null;
+
+    return null;
+}
+
+export { BG_PRESETS };
+</file>
+
+<file path="src/components/BrutalHero.tsx">
+
+</file>
+
+<file path="src/components/ChatPanel.tsx">
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+
+export interface ChatMessage {
+    id: string;
+    role: 'user' | 'agent';
+    text: string;
+    timestamp: number;
+    imageBase64?: string;
+    imageCaption?: string;
+    thought?: string;
+}
+
+interface ChatPanelProps {
+    messages: ChatMessage[];
+    onSendMessage: (text: string, pendingImage?: { base64: string, type: 'photo' | 'garment' }) => void;
+    isOpen: boolean;
+    onToggle: () => void;
+    isExpanded: boolean;
+    onToggleExpand: () => void;
+    personaName?: string;
+    canTryOn: boolean;
+    micEnabled?: boolean;
+    onToggleMic?: () => void;
+    onUploadPhoto?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onTryFit?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    onEndSession?: () => void;
+    onRequestStudioEdit?: (engine: string, action: string, prompt: string, baseImage: string) => void;
+    studioEditResult?: string[];
+}
+
+type TabMode = 'chat' | 'studio';
+
+const suggestions = [
+    "What's trending?",
+    "Show me something edgy",
+    "Analyze my style",
+    "Try a bold look"
+];
+
+function ThoughtBlock({ text, persona }: { text: string, persona: string }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    return (
+        <div style={{
+            background: 'rgba(255, 255, 255, 0.03)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            borderRadius: '8px',
+            padding: '8px 12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s',
+            marginBottom: '4px'
+        }} onClick={() => setIsExpanded(!isExpanded)}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', fontSize: '0.7rem', fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'rgba(255,255,255,0.4)' }}>
+                    <span style={{ transform: isExpanded ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s', display: 'inline-block' }}>▶</span>
+                    {persona} is thinking...
+                </div>
+                <div style={{ fontSize: '0.6rem', color: isExpanded ? '#d4a853' : 'rgba(255,255,255,0.2)', textTransform: 'uppercase' }}>
+                    {isExpanded ? 'Hide' : 'Show Details'}
+                </div>
+            </div>
+            {isExpanded && (
+                <div style={{
+                    marginTop: '8px',
+                    fontSize: '0.75rem',
+                    lineHeight: 1.4,
+                    color: 'rgba(255,255,255,0.3)',
+                    borderTop: '1px solid rgba(255,255,255,0.05)',
+                    paddingTop: '8px',
+                    whiteSpace: 'pre-wrap',
+                    fontStyle: 'italic'
+                }}>
+                    {text}
+                </div>
+            )}
+        </div>
+    );
+}
+
+export default function ChatPanel({
+    messages, onSendMessage, isOpen, onToggle,
+    isExpanded, onToggleExpand, personaName = 'Stylist',
+    canTryOn,
+    micEnabled = false, onToggleMic,
+    onUploadPhoto, onTryFit, onEndSession,
+    onRequestStudioEdit, studioEditResult,
+}: ChatPanelProps) {
+    const [input, setInput] = useState('');
+    const [activeTab, setActiveTab] = useState<TabMode>('chat');
+    const [pendingImage, setPendingImage] = useState<{ base64: string, type: 'photo' | 'garment' } | null>(null);
+    const [studioImage, setStudioImage] = useState<string | null>(null);
+    const [studioOptions, setStudioOptions] = useState<string[]>([]);
+    const [studioOptionIdx, setStudioOptionIdx] = useState(0);
+    const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+    const [editMode, setEditMode] = useState<string | null>(null);
+    const [brightness, setBrightness] = useState(100);
+    const [contrast, setContrast] = useState(100);
+    const [saturate, setSaturate] = useState(100);
+    const [blur, setBlur] = useState(0);
+    const [hueRotate, setHueRotate] = useState(0);
+
+    // Studio Animation Engine State
+    const [engine, setEngine] = useState('veo');
+    const [studioAction, setStudioAction] = useState('animate');
+    const [studioPrompt, setStudioPrompt] = useState('');
+    const [studioGenerating, setStudioGenerating] = useState(false);
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [messages]);
+
+    // Handle incoming studio edit results
+    useEffect(() => {
+        if (studioEditResult && studioGenerating) {
+            if (studioEditResult.length > 0) {
+                setStudioOptions(studioEditResult);
+                setStudioOptionIdx(0);
+                setStudioImage(studioEditResult[0]);
+            }
+            setStudioGenerating(false);
+        }
+    }, [studioEditResult, studioGenerating]);
+
+    const handleSend = () => {
+        const trimmed = input.trim();
+        if (!trimmed && !pendingImage) return;
+        onSendMessage(trimmed, pendingImage || undefined);
+        setInput('');
+        setPendingImage(null);
+    };
+
+    const handleFileUpload = (type: 'photo' | 'garment') => (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+            const result = reader.result as string;
+            if (result) {
+                // remove the 'data:image/jpeg;base64,' prefix
+                const base64Data = result.split(',')[1];
+                setPendingImage({ base64: base64Data, type });
+            }
+        };
+        reader.readAsDataURL(file);
+
+        // Clear input so same file can be selected again
+        e.target.value = '';
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
+    };
+
+    // Open image in studio for editing
+    const openInStudio = (imageBase64: string) => {
+        setStudioImage(imageBase64);
+        setActiveTab('studio');
+        // Reset filters
+        setBrightness(100);
+        setContrast(100);
+        setSaturate(100);
+        setBlur(0);
+        setHueRotate(0);
+        setEditMode(null);
+    };
+
+    // Download edited image
+    const downloadImage = () => {
+        if (!studioImage) return;
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.width;
+            canvas.height = img.height;
+            const ctx = canvas.getContext('2d')!;
+            ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px) hue-rotate(${hueRotate}deg)`;
+            ctx.drawImage(img, 0, 0);
+            const link = document.createElement('a');
+            link.download = 'edited-outfit.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        };
+        img.src = `data:image/png;base64,${studioImage}`;
+    };
+
+    const resetFilters = () => {
+        setBrightness(100);
+        setContrast(100);
+        setSaturate(100);
+        setBlur(0);
+        setHueRotate(0);
+    };
+
+    const handleStudioGenerate = () => {
+        if (!studioImage || !onRequestStudioEdit) return;
+        setStudioGenerating(true);
+        onRequestStudioEdit(engine, studioAction, studioPrompt, studioImage);
+    };
+
+    const filterStyle = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturate}%) blur(${blur}px) hue-rotate(${hueRotate}deg)`;
+
+    const suggestions = [
+        "What's trending?",
+        "Show me something edgy",
+        "Analyze my style",
+        "Try a bold look"
+    ];
+
+    return (
+        <div style={{
+            position: 'absolute',
+            top: 0,
+            right: 0,
+            width: isExpanded ? '100%' : '440px',
+            height: '100%',
+            background: '#0a0a0d', 
+            backdropFilter: 'blur(25px)',
+            borderLeft: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            flexDirection: 'column',
+            fontFamily: "'Inter', sans-serif",
+            overflow: 'hidden',
+            zIndex: 1000,
+            transition: 'width 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
+            boxShadow: '-10px 0 40px rgba(0,0,0,0.5)',
+            borderRadius: isExpanded ? '0' : '24px 0 0 24px',
+        }}>
+            {/* Header with Tabs */}
+            <div style={{
+                padding: '14px 16px 0',
+                borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+                flexShrink: 0,
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', paddingLeft: '4px' }}>
+                        <div style={{
+                            width: '6px', height: '6px', borderRadius: '50%',
+                            background: '#4dff91', boxShadow: '0 0 8px rgba(77, 255, 145, 0.6)'
+                        }} />
+                        <span style={{
+                            fontSize: '0.7rem', fontWeight: 800, letterSpacing: '0.12em',
+                            textTransform: 'uppercase', color: '#fff', opacity: 0.9
+                        }}>
+                             {personaName}
+                        </span>
+                    </div>
+                    <button
+                        onClick={onToggleExpand}
+                        style={{
+                            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '6px', color: '#fff', cursor: 'pointer',
+                            padding: '6px 10px', fontSize: '0.7rem', fontWeight: 600,
+                            display: 'flex', alignItems: 'center', gap: '6px',
+                            transition: 'all 0.2s'
+                        }}
+                    >
+                        <span style={{ opacity: 0.7 }}>🗉</span> Text Only
+                    </button>
+                </div>
+                <div style={{ display: 'flex', gap: '0', position: 'relative' }}>
+                    {(['chat', 'studio'] as TabMode[]).map(tab => (
+                        <button
+                            key={tab}
+                            onClick={() => setActiveTab(tab)}
+                            style={{
+                                flex: 1, padding: '12px 0', fontSize: '0.72rem', fontWeight: 800,
+                                letterSpacing: '0.1em', textTransform: 'uppercase',
+                                color: activeTab === tab ? '#fff' : 'rgba(255,255,255,0.3)',
+                                background: 'transparent', border: 'none', cursor: 'pointer',
+                                borderBottom: activeTab === tab ? '2px solid #d4a853' : '1px solid rgba(255,255,255,0.05)',
+                                transition: 'all 0.3s var(--ease-out-expo)', fontFamily: "'Inter', sans-serif",
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px'
+                            }}
+                        >
+                            {tab === 'chat' ? (
+                                <><span style={{ fontSize: '1rem', opacity: activeTab === tab ? 1 : 0.5 }}>💬</span> CHAT</>
+                            ) : (
+                                <><span style={{ fontSize: '1rem', opacity: activeTab === tab ? 1 : 0.5 }}>🎨</span> STUDIO</>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            </div>
+
+            {activeTab === 'chat' && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0, position: 'relative' }}>
+                    {/* Messages */}
+                    <div ref={scrollRef} style={{
+                        flex: 1, 
+                        overflowY: 'auto', 
+                        padding: '16px 16px 8px',
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '12px',
+                        scrollbarWidth: 'thin', 
+                        scrollbarColor: 'rgba(255,255,255,0.1) transparent',
+                    }}>
+                        {messages.length === 0 && (
+                            <div style={{
+                                display: 'flex', flexDirection: 'column', alignItems: 'center',
+                                justifyContent: 'center', flex: 1, gap: '16px', opacity: 0.6,
+                            }}>
+                                <div style={{
+                                    width: '40px', height: '40px', borderRadius: '50%',
+                                    background: 'rgba(255,255,255,0.05)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '1.2rem', color: 'rgba(255,255,255,0.2)'
+                                }}>💬</div>
+                                <span style={{ fontSize: '0.85rem', color: 'rgba(255,255,255,0.3)', textAlign: 'center', letterSpacing: '0.02em' }}>
+                                    Type or speak to {personaName}
+                                </span>
+                            </div>
+                        )}
+                        {messages.map((msg) => (
+                            <div key={msg.id} style={{
+                                alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                                maxWidth: '88%',
+                            }}>
+                                {(() => {
+                                    // 1. Extract reasoning from text blocks wrapped in **
+                                    const reasoningMatch = msg.text.match(/\*\*([\s\S]*?)\*\*/g);
+                                    let extractedReasoning = reasoningMatch 
+                                        ? reasoningMatch.map(m => m.replace(/\*\*/g, '')).join('\n') 
+                                        : '';
+                                    
+                                    // 2. Strip reasoning from the main speech text
+                                    let rawSpeech = msg.text.replace(/\*\*[\s\S]*?\*\*/g, '').replace(/\*\*/g, '');
+                                    
+                                    // 3. Sentence-level Heuristic: Move sentences containing jargon to thoughts
+                                    const sentences = rawSpeech.split(/(?<=[.!?])\s+/);
+                                    const jargonRegex = /PROTOCOL|INITIATED|ACTIVATED|USER-FIRST|CONSENT|MANDATORY|STEP|TOOL|CALL|GENERATE_OUTFIT|SKIPPING|CREDIT|BREVITY|IMAGINATION/i;
+                                    
+                                    let cleanSpeechSentences: string[] = [];
+                                    let movedToThoughts: string[] = [];
+
+                                    sentences.forEach(s => {
+                                        if (jargonRegex.test(s)) {
+                                            movedToThoughts.push(s);
+                                        } else {
+                                            cleanSpeechSentences.push(s);
+                                        }
+                                    });
+
+                                    let cleanSpeech = cleanSpeechSentences.join(' ').trim();
+                                    let combinedThought = (msg.thought || '') + 
+                                                          (extractedReasoning ? `\n${extractedReasoning}` : '') + 
+                                                          (movedToThoughts.length > 0 ? `\n${movedToThoughts.join(' ')}` : '');
+
+                                    // 4. Final safety scrub of forbidden words themselves
+                                    const forbidden = [
+                                        /GREETING PROTOCOL/gi, /USER-FIRST/gi, /CONSENT PROTOCOL/gi, 
+                                        /INITIATED/gi, /ACTIVATED/gi, /PROTOCOL/gi, /MANDATORY/gi,
+                                        /CREDIT SAVING/gi, /BREVITY PROTOCOL/gi, /IMAGINATION PROTOCOL/gi,
+                                        /ROBOT-FREE SPEECH/gi, /FORMATTING REQUIREMENTS/gi, /VOICE PERSONALITY/gi
+                                    ];
+                                    
+                                    forbidden.forEach(reg => {
+                                        cleanSpeech = cleanSpeech.replace(reg, '');
+                                        combinedThought = combinedThought.replace(reg, '');
+                                    });
+
+                                    cleanSpeech = cleanSpeech.trim();
+                                    combinedThought = combinedThought.trim();
+
+                                    return (
+                                        <>
+                                            {combinedThought && (
+                                                <div style={{ width: '100%', marginBottom: cleanSpeech ? '8px' : '0' }}>
+                                                    <ThoughtBlock text={combinedThought} persona={personaName} />
+                                                </div>
+                                            )}
+                                            {cleanSpeech && (
+                                                <div style={{
+                                                    padding: '8px 12px',
+                                                    borderRadius: msg.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                                                    background: msg.role === 'user'
+                                                        ? 'rgba(255, 255, 255, 0.05)'
+                                                        : 'rgba(206, 254, 0, 0.06)',
+                                                    border: `1px solid ${msg.role === 'user'
+                                                        ? 'rgba(255, 255, 255, 0.1)'
+                                                        : 'rgba(206, 254, 0, 0.15)'}`,
+                                                    fontSize: '0.85rem',
+                                                    lineHeight: 1.5,
+                                                    color: msg.role === 'user' ? '#f6f4f0' : 'var(--color-acid-green)',
+                                                }}>
+                                                    {cleanSpeech}
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                                {/* Inline outfit image — clickable to open in studio */}
+                                {msg.imageBase64 && (
+                                    <div style={{ marginTop: '6px' }}>
+                                        <img
+                                            src={msg.imageBase64.startsWith('data:') ? msg.imageBase64 : `data:image/png;base64,${msg.imageBase64}`}
+                                            alt={msg.imageCaption || 'Generated outfit'}
+                                            onClick={() => setLightboxImage(msg.imageBase64!)}
+                                            style={{
+                                                width: '100%', maxWidth: '260px', borderRadius: '10px',
+                                                border: '1px solid rgba(255,255,255,0.08)',
+                                                cursor: 'zoom-in', transition: 'transform 0.2s',
+                                            }}
+                                            title="Click to enlarge"
+                                        />
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                                            {msg.imageCaption && (
+                                                <p style={{
+                                                    fontSize: '0.7rem', color: 'rgba(245,245,247,0.35)',
+                                                    fontStyle: 'italic', flex: 1, margin: 0,
+                                                }}>{msg.imageCaption}</p>
+                                            )}
+                                            <button
+                                                onClick={() => openInStudio(msg.imageBase64!)}
+                                                style={{
+                                                    background: 'rgba(212,168,83,0.12)', border: '1px solid rgba(212,168,83,0.25)',
+                                                    borderRadius: '6px', color: '#f0c97a', cursor: 'pointer',
+                                                    padding: '2px 8px', fontSize: '0.65rem', flexShrink: 0,
+                                                    fontFamily: "'Inter', sans-serif",
+                                                }}
+                                            >
+                                                ✏️ Edit
+                                            </button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+
+                    {/* Suggestion Pills */}
+                    {messages.length === 0 && (
+                        <div style={{
+                            padding: '0 16px 12px', display: 'flex', flexWrap: 'wrap', gap: '8px',
+                            justifyContent: 'flex-end'
+                        }}>
+                            {suggestions.map((s) => (
+                                <button key={s} onClick={() => onSendMessage(s)} style={{
+                                    padding: '6px 14px', borderRadius: '12px', fontSize: '0.75rem',
+                                    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                    color: 'rgba(255,255,255,0.4)', cursor: 'pointer', transition: 'all 0.2s',
+                                    fontFamily: "'Inter', sans-serif",
+                                }}
+                                    onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#fff'; }}
+                                    onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; }}
+                                >
+                                    {s}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Input Row Match: [Input] [Photo] [Dress] [Up Arrow] [Mic] */}
+                    <div style={{
+                        padding: '12px 16px 24px', flexShrink: 0,
+                        position: 'relative', background: 'transparent'
+                    }}>
+                        <div style={{
+                            display: 'flex', alignItems: 'center',
+                            background: 'rgba(255,255,255,0.06)', borderRadius: '16px',
+                            border: '1px solid rgba(255,255,255,0.08)', padding: '8px 14px',
+                            gap: '12px', width: '100%', boxShadow: '0 4px 20px rgba(0,0,0,0.25)'
+                        }}>
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                onKeyDown={handleKeyDown}
+                                placeholder={pendingImage ? "Add style notes..." : "Type a message..."}
+                                style={{
+                                    flex: 1, background: 'transparent', border: 'none', 
+                                    outline: 'none', color: '#fff', fontSize: '0.92rem', 
+                                    fontFamily: "'Inter', sans-serif", opacity: 0.9
+                                }}
+                            />
+                            
+                            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                {/* Send Button (Up Arrow) - Now First */}
+                                <button onClick={handleSend} disabled={!input.trim() && !pendingImage} style={{
+                                    width: '34px', height: '34px', borderRadius: '50%',
+                                    background: (input.trim() || pendingImage) ? 'rgba(245,245,247,0.15)' : 'rgba(255,255,255,0.03)',
+                                    border: 'none', cursor: (input.trim() || pendingImage) ? 'pointer' : 'default',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    transition: 'all 0.2s'
+                                }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="#f5f5f7" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: (input.trim() || pendingImage) ? 1 : 0.4 }}/>
+                                    </svg>
+                                </button>
+
+                                {/* Photo Upload Button */}
+                                <label title="Upload photo" style={{
+                                    width: '34px', height: '34px', borderRadius: '50%',
+                                    background: 'rgba(255,255,255,0.08)', cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    transition: 'all 0.2s', border: '1px solid rgba(255,255,255,0.05)'
+                                }}>
+                                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={onUploadPhoto} />
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" stroke="#f5f5f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M10.5 2L9 4H5C3.89543 4 3 4.89543 3 6V18C3 19.1046 3.89543 20 5 20H19C20.1046 20 21 19.1046 21 18V6C21 4.89543 20.1046 4 19 4H15L13.5 2H10.5Z" stroke="#f5f5f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                </label>
+
+                                {/* Dress / Try On Button */}
+                                <label title={canTryOn ? 'Try on garment' : 'Upload photo first'} style={{
+                                    width: '34px', height: '34px', borderRadius: '50%',
+                                    background: canTryOn ? 'rgba(245, 245, 247, 0.12)' : 'rgba(255,255,255,0.03)',
+                                    cursor: canTryOn ? 'pointer' : 'not-allowed',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    opacity: canTryOn ? 1 : 0.25,
+                                    border: canTryOn ? '1px solid rgba(245, 245, 247, 0.2)' : 'none',
+                                    transition: 'all 0.2s'
+                                }}>
+                                    <input type="file" accept="image/*" style={{ display: 'none' }}
+                                        onChange={canTryOn ? onTryFit : undefined} disabled={!canTryOn} />
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 4L4 7V10C4 13.5 12 21 12 21C12 21 20 13.5 20 10V7L12 4Z" stroke="#f5f5f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M8 8V10C8 10 10 11 12 11C14 11 16 10 16 10V8" stroke="#f5f5f7" strokeWidth="2" strokeLinecap="round"/>
+                                    </svg>
+                                </label>
+
+                                <button onClick={onToggleMic} title={micEnabled ? 'Mute' : 'Unmute'} style={{
+                                    width: '34px', height: '34px', borderRadius: '50%',
+                                    background: micEnabled ? 'rgba(212,168,83,0.2)' : 'rgba(255,255,255,0.06)',
+                                    cursor: 'pointer',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    border: micEnabled ? '1px solid rgba(212,168,83,0.3)' : '1px solid rgba(255,255,255,0.05)',
+                                    transition: 'all 0.2s',
+                                }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M12 1C11.2044 1 10.4413 1.31607 9.87868 1.87868C9.31607 2.44129 9 3.20435 9 4V12C9 12.7956 9.31607 13.5587 9.87868 14.1213C10.4413 14.6839 11.2044 15 12 15C12.7956 15 13.5587 14.6839 14.1213 14.1213C14.6839 13.5587 15 12.7956 15 12V4C15 3.20435 14.6839 2.44129 14.1213 1.87868C13.5587 1.31607 12.7956 1 12 1Z" stroke={micEnabled ? '#f0c97a' : '#f5f5f7'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M19 10V12C19 13.8565 18.2625 15.637 16.9497 16.9497C15.637 18.2625 13.8565 19 12 19C10.1435 19 8.36301 18.2625 7.05025 16.9497C5.73749 15.637 5 13.8565 5 12V10" stroke={micEnabled ? '#f0c97a' : '#f5f5f7'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M12 19V23" stroke={micEnabled ? '#f0c97a' : '#f5f5f7'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                        <path d="M8 23H16" stroke={micEnabled ? '#f0c97a' : '#f5f5f7'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* ─── STUDIO TAB ─── */}
+            {activeTab === 'studio' && (
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                    {!studioImage ? (
+                        <div style={{
+                            flex: 1, display: 'flex', flexDirection: 'column',
+                            alignItems: 'center', justifyContent: 'center', gap: '16px', opacity: 0.4,
+                        }}>
+                            <span style={{ fontSize: '2.5rem' }}>🎨</span>
+                            <span style={{ fontSize: '0.85rem', color: 'rgba(245,245,247,0.5)', textAlign: 'center' }}>
+                                Click &quot;Edit&quot; on any generated image<br />to open it here
+                            </span>
+                        </div>
+                    ) : (
+                        <>
+                            {/* Image Preview with filters applied */}
+                            <div style={{
+                                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                padding: '12px', overflow: 'hidden', background: 'rgba(0,0,0,0.3)',
+                            }}>
+                                <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px' }}>
+                                    <canvas
+                                        ref={canvasRef}
+                                        style={{
+                                            display: 'none'
+                                        }}
+                                    />
+                                    {studioImage?.startsWith('data:video') || studioImage?.endsWith('.mp4') ? (
+                                        <video
+                                            src={studioImage.startsWith('data:') ? studioImage : `data:video/mp4;base64,${studioImage}`}
+                                            autoPlay
+                                            loop
+                                            muted
+                                            playsInline
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                borderRadius: '12px'
+                                            }}
+                                        />
+                                    ) : (
+                                        <img
+                                            src={studioImage?.startsWith('data:') ? studioImage : `data:image/png;base64,${studioImage}`}
+                                            alt="Studio Editor"
+                                            style={{
+                                                width: '100%',
+                                                height: '100%',
+                                                objectFit: 'cover',
+                                                filter: filterStyle,
+                                                transition: 'filter 0.1s', // Smooth slider updates
+                                            }}
+                                        />
+                                    )}
+
+                                    {/* Multi-option Navigation Overlay */}
+                                    {studioOptions.length > 1 && (
+                                        <>
+                                            <button
+                                                onClick={() => {
+                                                    const newIdx = Math.max(0, studioOptionIdx - 1);
+                                                    setStudioOptionIdx(newIdx);
+                                                    setStudioImage(studioOptions[newIdx]);
+                                                }}
+                                                disabled={studioOptionIdx === 0}
+                                                style={{
+                                                    position: 'absolute', top: '50%', left: '10px', transform: 'translateY(-50%)',
+                                                    background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff',
+                                                    width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    opacity: studioOptionIdx === 0 ? 0.3 : 1
+                                                }}
+                                            >
+                                                {'<'}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    const newIdx = Math.min(studioOptions.length - 1, studioOptionIdx + 1);
+                                                    setStudioOptionIdx(newIdx);
+                                                    setStudioImage(studioOptions[newIdx]);
+                                                }}
+                                                disabled={studioOptionIdx === studioOptions.length - 1}
+                                                style={{
+                                                    position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)',
+                                                    background: 'rgba(0,0,0,0.6)', border: 'none', color: '#fff',
+                                                    width: '36px', height: '36px', borderRadius: '50%', cursor: 'pointer',
+                                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                                    opacity: studioOptionIdx === studioOptions.length - 1 ? 0.3 : 1
+                                                }}
+                                            >
+                                                {'>'}
+                                            </button>
+                                            <div style={{
+                                                position: 'absolute', bottom: '10px', right: '10px',
+                                                background: 'rgba(0,0,0,0.7)', padding: '4px 10px', borderRadius: '12px',
+                                                fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.05em'
+                                            }}>
+                                                Option {studioOptionIdx + 1} of {studioOptions.length}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Animation Engine Controls */}
+                            <div style={{
+                                padding: '10px 14px 14px',
+                                borderTop: '1px solid rgba(255,255,255,0.06)',
+                                display: 'flex', flexDirection: 'column', gap: '10px',
+                                flexShrink: 0,
+                            }}>
+                                <div style={{ display: 'flex', gap: '8px' }}>
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <label style={{ fontSize: '0.65rem', color: 'rgba(245,245,247,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Engine</label>
+                                        <select
+                                            value={engine}
+                                            onChange={(e) => setEngine(e.target.value)}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '6px', color: '#f5f5f7', padding: '6px', fontSize: '0.75rem',
+                                                outline: 'none', fontFamily: "'Inter', sans-serif"
+                                            }}
+                                        >
+                                            <option value="veo" style={{ background: '#1a1a1a', color: '#f5f5f7' }}>Google Veo 3 (Video Engine)</option>
+                                            <option value="banana" style={{ background: '#1a1a1a', color: '#f5f5f7' }}>Nano Banana 2 (Image Gen)</option>
+                                            <option value="nano" style={{ background: '#1a1a1a', color: '#f5f5f7' }}>Nano Adapter</option>
+                                        </select>
+                                    </div>
+                                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        <label style={{ fontSize: '0.65rem', color: 'rgba(245,245,247,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Action</label>
+                                        <select
+                                            value={studioAction}
+                                            onChange={(e) => setStudioAction(e.target.value)}
+                                            style={{
+                                                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                                                borderRadius: '6px', color: '#f5f5f7', padding: '6px', fontSize: '0.75rem',
+                                                outline: 'none', fontFamily: "'Inter', sans-serif"
+                                            }}
+                                        >
+                                            <option value="animate" style={{ background: '#1a1a1a', color: '#f5f5f7' }}>Animate (Keyframes)</option>
+                                            <option value="reimagine" style={{ background: '#1a1a1a', color: '#f5f5f7' }}>Reimagine (Image)</option>
+                                            <option value="upscale" style={{ background: '#1a1a1a', color: '#f5f5f7' }}>Upscale (4K)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                {/* QUICK PRESETS SECTION */}
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                                    <label style={{ fontSize: '0.65rem', color: 'var(--color-acid-green)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 700 }}>PRO RETOUCH PRESETS</label>
+                                    <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                                        {[
+                                            { label: '✨ High-End', prompt: 'Professional high-end fashion magazine retouch, flawless skin, cinematic lighting, ultra-detailed textures.' },
+                                            { label: '🖼️ 4K Upscale', prompt: 'Subtle enhancement, sharpen details, ultra-high resolution, clear textures, professional photography finish.' },
+                                            { label: '🎭 Artistic', prompt: 'Avant-garde fashion edge, dramatic shadows, stylistic color grading, high contrast, runway aesthetic.' }
+                                        ].map(preset => (
+                                            <button
+                                                key={preset.label}
+                                                onClick={() => {
+                                                    setStudioPrompt(preset.prompt);
+                                                    setEngine('veo');
+                                                    setStudioAction('reimagine');
+                                                }}
+                                                style={{
+                                                    flex: 1, padding: '6px 10px', borderRadius: '6px', fontSize: '0.65rem',
+                                                    background: studioPrompt === preset.prompt ? 'rgba(206, 254, 0, 0.2)' : 'rgba(255,255,255,0.03)',
+                                                    border: `1px solid ${studioPrompt === preset.prompt ? 'var(--color-acid-green)' : 'rgba(255,255,255,0.08)'}`,
+                                                    color: studioPrompt === preset.prompt ? 'var(--color-acid-green)' : 'rgba(245,245,247,0.5)',
+                                                    cursor: 'pointer', fontFamily: "'Inter', sans-serif",
+                                                    transition: 'all 0.2s'
+                                                }}
+                                            >
+                                                {preset.label}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                    <label style={{ fontSize: '0.65rem', color: 'rgba(245,245,247,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Prompt / Directives</label>
+                                    <textarea
+                                        value={studioPrompt}
+                                        onChange={(e) => setStudioPrompt(e.target.value)}
+                                        placeholder="E.g., Make the fabric blow gently in the wind..."
+                                        rows={2}
+                                        style={{
+                                            background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)',
+                                            borderRadius: '6px', color: '#f5f5f7', padding: '8px', fontSize: '0.75rem',
+                                            outline: 'none', fontFamily: "'Inter', sans-serif", resize: 'none',
+                                            scrollbarWidth: 'none'
+                                        }}
+                                    />
+                                </div>
+
+                                {/* Action buttons */}
+                                <div style={{ display: 'flex', gap: '6px', marginTop: '4px' }}>
+                                    <button onClick={downloadImage} style={{
+                                        flex: 1, padding: '7px', borderRadius: '8px', fontSize: '0.75rem',
+                                        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                                        color: '#f5f5f7', cursor: 'pointer', fontFamily: "'Inter', sans-serif",
+                                    }}>⬇ Image</button>
+                                    <button
+                                        onClick={handleStudioGenerate}
+                                        disabled={studioGenerating}
+                                        style={{
+                                            flex: 2, padding: '7px', borderRadius: '8px', fontSize: '0.75rem',
+                                            background: studioGenerating ? 'rgba(212,168,83,0.4)' : 'rgba(212,168,83,0.9)',
+                                            border: 'none',
+                                            color: '#000', cursor: studioGenerating ? 'wait' : 'pointer', fontFamily: "'Inter', sans-serif",
+                                            fontWeight: 600
+                                        }}
+                                    >
+                                        {studioGenerating ? 'Processing...' : '✨ Generate'}
+                                    </button>
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            )}
+
+            {/* ─── LIGHTBOX OVERLAY ─── */}
+            {lightboxImage && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    zIndex: 9999, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(10px)',
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    padding: '2rem'
+                }} onClick={() => setLightboxImage(null)}>
+                    <button style={{
+                        position: 'absolute', top: '20px', right: '30px', background: 'rgba(255,255,255,0.1)',
+                        border: '1px solid rgba(255,255,255,0.2)', color: '#fff', borderRadius: '50%',
+                        width: '40px', height: '40px', fontSize: '1.2rem', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                    }}>✕</button>
+                    <img
+                        src={`data:image/png;base64,${lightboxImage}`}
+                        alt="Enlarged view"
+                        style={{
+                            maxWidth: '100%', maxHeight: '85vh', objectFit: 'contain',
+                            borderRadius: '16px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+                            border: '1px solid rgba(255,255,255,0.1)'
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                    <div style={{ marginTop: '20px', display: 'flex', gap: '12px' }}>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); setLightboxImage(null); openInStudio(lightboxImage); }}
+                            style={{
+                                padding: '10px 24px', borderRadius: '8px', fontSize: '0.9rem',
+                                background: 'rgba(212,168,83,0.15)', border: '1px solid rgba(212,168,83,0.4)',
+                                color: '#f0c97a', cursor: 'pointer', fontFamily: "'Inter', sans-serif",
+                                fontWeight: 500, display: 'flex', alignItems: 'center', gap: '8px'
+                            }}
+                        >
+                            ✏️ Edit in Studio
+                        </button>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+</file>
+
+<file path="src/components/FeatureGrid.tsx">
+import React from 'react';
+
+const FEATURES = [
+    {
+        id: '01',
+        category: 'VOICE',
+        title: 'UNFILTERED VOICE INTERACTION',
+        description: 'No typing required. Speak naturally and get instant, brutally honest feedback. Professional styling advice on demand.'
+    },
+    {
+        id: '02',
+        category: 'GEN',
+        title: 'CONVERSATIONAL OUTFIT GENERATION',
+        description: 'Describe your vision and watch as the system instantly generates and edits bespoke garments before your eyes.'
+    },
+    {
+        id: '03',
+        category: 'AVATAR',
+        title: 'TRUE-TO-LIFE 3D AVATARS',
+        description: 'Fully rigged, photorealistic models with flawless physics for an incredibly accurate virtual try-on experience.'
+    },
+    {
+        id: '04',
+        category: 'INTERFACE',
+        title: 'FRICTIONLESS SPLIT-SCREEN UI',
+        description: 'Manage the 3D environment and the wardrobe simultaneously without ever breaking the conversation.'
+    },
+    {
+        id: '05',
+        category: 'STUDIO',
+        title: 'STUDIO SUITE',
+        description: 'A complete creative suite for high-fidelity garment manipulation and detail refinement.'
+    },
+    {
+        id: '06',
+        category: 'VIRTUAL TRY-ON',
+        title: 'VIRTUAL TRY-ON',
+        description: 'Real-time physics-based fitting to see exactly how fabrics drape and move on your unique form.'
+    }
+];
+
+export default function FeatureGrid() {
+    return (
+        <section id="features" style={{
+            padding: '60px 40px',
+            maxWidth: '1200px',
+            margin: '0 auto',
+            width: '100%'
+        }}>
+            <div style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: '24px'
+            }}>
+                {FEATURES.map((feature) => (
+                    <div key={feature.id} style={{
+                        background: 'rgba(231, 229, 228, 0.005)',
+                        border: '1px solid rgba(255, 255, 255, 0.02)',
+                        borderRadius: '16px',
+                        padding: '24px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '16px',
+                        transition: 'all 500ms var(--ease-editorial)',
+                        cursor: 'default',
+                        position: 'relative',
+                        overflow: 'hidden'
+                    }} className="feature-card-hover">
+                        <div style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '9px',
+                            color: 'rgba(231, 229, 228, 0.2)',
+                            display: 'flex',
+                            gap: '6px',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.12em'
+                        }}>
+                            <span>{feature.id} /</span>
+                            <span>{feature.category}</span>
+                        </div>
+                        
+                        <h3 style={{
+                            fontFamily: 'var(--font-serif)',
+                            fontSize: '1rem',
+                            fontWeight: 700,
+                            margin: 0,
+                            lineHeight: 1.1,
+                            letterSpacing: '-0.01em',
+                            color: 'var(--text-stone)',
+                            opacity: 0.9
+                        }}>
+                            {feature.title}
+                        </h3>
+                        
+                        <p style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: '11px',
+                            lineHeight: 1.4,
+                            color: 'rgba(231, 229, 228, 0.4)',
+                            margin: 0,
+                            maxWidth: '220px'
+                        }}>
+                            {feature.description}
+                        </p>
+                    </div>
+                ))}
+            </div>
+            <style jsx>{`
+                .feature-card-hover:hover {
+                    background: rgba(231, 229, 228, 0.02) !important;
+                    border-color: rgba(255, 255, 255, 0.06) !important;
+                    transform: translateY(-2px);
+                }
+            `}</style>
+        </section>
+    );
+}
+</file>
+
+<file path="src/components/Marquee.tsx">
+import React from 'react';
+
+export default function Marquee() {
+    const text = "Zaute is your fashion co-pilot. A 3D AI fashion agent designed to synthesize stunning silhouettes through real-time agent interaction. — ";
+    
+    return (
+        <div style={{
+            width: '100%',
+            overflow: 'hidden',
+            background: 'var(--color-acid-lime)',
+            padding: '16px 0',
+            borderTop: '0.5px solid rgba(0,0,0,0.1)',
+            borderBottom: '0.5px solid rgba(0,0,0,0.1)',
+            zIndex: 20,
+            position: 'relative',
+            marginTop: '-12px',
+            transform: 'rotate(-0.5deg)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+        }}>
+            <div className="animate-marquee" style={{ display: 'flex', alignItems: 'center' }}>
+                <span style={{ 
+                    fontFamily: 'var(--font-serif)',
+                    fontSize: 'clamp(1rem, 2vw, 1.25rem)',
+                    fontWeight: 800,
+                    color: 'black',
+                    letterSpacing: '-0.02em',
+                    paddingRight: '4rem',
+                    lineHeight: 1
+                }}>
+                    {text.repeat(10)}
+                </span>
+            </div>
+        </div>
+    );
+}
+</file>
+
+<file path="src/components/SerratedDivider.tsx">
+import React from 'react';
+
+interface SerratedDividerProps {
+    className?: string;
+    style?: React.CSSProperties;
+    position?: 'top' | 'bottom';
+}
+
+/**
+ * Procedural jagged edge divider using radial-gradient masks.
+ */
+export default function SerratedDivider({ className = '', style = {}, position = 'bottom' }: SerratedDividerProps) {
+    return (
+        <div 
+            className={`serrated-divider ${className}`}
+            style={{
+                width: '100%',
+                height: '16px',
+                position: 'relative',
+                zIndex: 5,
+                maskImage: 'radial-gradient(circle at 10px 0, transparent 0, transparent 5px, black 5px)',
+                WebkitMaskImage: 'radial-gradient(circle at 10px 0, transparent 0, transparent 5px, black 5px)',
+                maskSize: '20px 10px',
+                WebkitMaskSize: '20px 10px',
+                maskRepeat: 'repeat-x',
+                WebkitMaskRepeat: 'repeat-x',
+                background: 'inherit',
+                transform: position === 'top' ? 'rotate(180deg)' : 'none',
+                marginTop: position === 'top' ? '-16px' : '0',
+                marginBottom: position === 'bottom' ? '-16px' : '0',
+                ...style
+            }}
+        />
+    );
+}
+</file>
+
+<file path="src/components/SplashScreen.tsx">
+'use client';
+
+interface SplashScreenProps {
+    onEnter: () => void;
+}
+
+export default function SplashScreen({ onEnter }: SplashScreenProps) {
+    return (
+        <div className="splash-screen">
+            <div className="splash-brand">
+                <h1 className="landing-title-premium-small">HAUTE COUTURE</h1>
+            </div>
+
+            <div className="spline-bg-wrapper">
+                <iframe
+                    src='https://my.spline.design/webdesign-OAsz88Dt18LZ3tHdrj0XZsWf/'
+                    frameBorder='0'
+                    width='100%'
+                    height='100%'
+                    className="spline-iframe"
+                    title="Interactive Eye Background"
+                />
+            </div>
+
+            <div className="splash-action">
+                <button className="splash-enter-btn" onClick={onEnter}>
+                    ENTER PLATFORM
+                </button>
+            </div>
+        </div>
+    );
+}
+</file>
+
+<file path="src/components/StickyNote.tsx">
+import React from 'react';
+
+interface StickyNoteProps {
+    title: string;
+    description?: string;
+    ctaText?: string;
+    onClick?: () => void;
+    rotation?: number;
+    className?: string;
+}
+
+export default function StickyNote({ 
+    title, 
+    description, 
+    ctaText, 
+    onClick, 
+    rotation = 2, 
+    className = '' 
+}: StickyNoteProps) {
+    return (
+        <div 
+            onClick={onClick}
+            className={`sticky-note-cta ${className}`}
+            style={{
+                background: 'var(--color-acid-lime)',
+                color: 'var(--bg-avant-black)',
+                padding: '40px',
+                borderRadius: '24px',
+                transform: `rotate(${rotation}deg)`,
+                cursor: onClick ? 'pointer' : 'default',
+                transition: 'all 300ms var(--ease-editorial)',
+                position: 'relative',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+            }}
+        >
+            <h3 style={{ 
+                fontFamily: 'var(--font-serif)', 
+                fontSize: '2rem', 
+                margin: 0,
+                fontWeight: 300,
+                lineHeight: 1.1
+            }}>
+                {title}
+            </h3>
+            {description && (
+                <p style={{ 
+                    fontFamily: 'var(--font-sans)', 
+                    fontSize: '1rem', 
+                    opacity: 0.8,
+                    margin: 0,
+                    lineHeight: 1.4
+                }}>
+                    {description}
+                </p>
+            )}
+            {ctaText && (
+                <div style={{ 
+                    marginTop: '20px',
+                    paddingTop: '20px',
+                    borderTop: '1px solid rgba(12, 10, 9, 0.1)',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em'
+                }}>
+                    {ctaText}
+                </div>
+            )}
+            
+            {/* Interactive hover effect handles via CSS-in-JS logic would go here if not using a separate CSS file,
+                but for simplicity we'll just use the inline style transition. */}
+            <style jsx>{`
+                .sticky-note-cta:hover {
+                    transform: rotate(0deg) scale(1.02);
+                }
+            `}</style>
+        </div>
+    );
+}
+</file>
+
+<file path="src/components/VRMStage_Backup.tsx">
+'use client';
+
+import React, { useEffect, useRef } from 'react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+
+interface VRMStageProps {
+    personaName: string;
+    agentVolume: { volume: number; a: number; i: number; u: number; e: number; o: number };
+    isThinking: boolean;
+    agentGesture: string | null;
+}
+
+/**
+ * EXPLICIT BONE MAPPING (Source -> Target)
+ */
+const MIXAMO_TO_AVATURN_MAP: Record<string, string> = {
+    'mixamorig:Hips': 'Hips',
+    'mixamorig:Spine': 'Spine',
+    'mixamorig:Spine1': 'Spine1',
+    'mixamorig:Spine2': 'Spine2',
+    'mixamorig:Neck': 'Neck',
+    'mixamorig:Head': 'Head',
+    'mixamorig:LeftShoulder': 'LeftShoulder',
+    'mixamorig:LeftArm': 'LeftArm',
+    'mixamorig:LeftForeArm': 'LeftForeArm',
+    'mixamorig:LeftHand': 'LeftHand',
+    'mixamorig:RightShoulder': 'RightShoulder',
+    'mixamorig:RightArm': 'RightArm',
+    'mixamorig:RightForeArm': 'RightForeArm',
+    'mixamorig:RightHand': 'RightHand',
+    'mixamorig:LeftUpLeg': 'LeftUpLeg',
+    'mixamorig:LeftLeg': 'LeftLeg',
+    'mixamorig:LeftFoot': 'LeftFoot',
+    'mixamorig:RightUpLeg': 'RightUpLeg',
+    'mixamorig:RightLeg': 'RightLeg',
+    'mixamorig:RightFoot': 'RightFoot'
+};
+
+const AVATURN_TO_MIXAMO_MAP: Record<string, string> = {};
+Object.entries(MIXAMO_TO_AVATURN_MAP).forEach(([mix, ava]) => {
+    AVATURN_TO_MIXAMO_MAP[ava] = mix;
+});
+
+export default function VRMStage({ personaName, agentVolume, isThinking, agentGesture }: VRMStageProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+    const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
+    const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+    const activeAnimNameRef = useRef<string>('idle');
+    const modelRef = useRef<THREE.Group | null>(null);
+    const faceMeshRef = useRef<THREE.SkinnedMesh | null>(null);
+
+    useEffect(() => {
+        if (!canvasRef.current || !containerRef.current) return;
+        let isMounted = true;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 1000);
+        camera.position.set(0, 1.4, 3.5);
+
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvasRef.current,
+            alpha: true,
+            antialias: true,
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        rendererRef.current = renderer;
+
+        const handleResize = () => {
+            if (!containerRef.current) return;
+            const w = containerRef.current.clientWidth;
+            const h = containerRef.current.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        };
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 1.2, 0);
+        controls.enableDamping = true;
+        controls.update();
+
+        // Lighting
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(5, 5, 5);
+        scene.add(dirLight);
+
+        // Environment
+        const hdrLoader = new HDRLoader();
+        hdrLoader.load('/backgrounds/ahornsteig_4k.hdr', (texture) => {
+            if (!isMounted) return;
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            scene.environment = texture;
+            const skybox = new GroundedSkybox(texture, 1.6, 100);
+            skybox.position.y = 1.6;
+            scene.add(skybox);
+        });
+
+        // ASSET LOADING
+        const gltfLoader = new GLTFLoader();
+        const fbxLoader = new FBXLoader();
+        const safePersona = (personaName || 'tony').toLowerCase();
+
+        gltfLoader.load(`/models/${safePersona}.glb`, (gltf) => {
+            if (!isMounted) return;
+            const model = gltf.scene;
+            modelRef.current = model;
+            scene.add(model);
+
+            // Discovery
+            let targetSkinnedMesh: THREE.SkinnedMesh | null = null;
+            model.traverse((child) => {
+                if ((child as any).isSkinnedMesh) {
+                    const sm = child as THREE.SkinnedMesh;
+                    // We need the main body SkinnedMesh for retargeting
+                    if (!targetSkinnedMesh && sm.skeleton) targetSkinnedMesh = sm;
+                    if (child.name.toLowerCase().includes('head') || (child as any).morphTargetInfluences) {
+                        faceMeshRef.current = child as THREE.SkinnedMesh;
+                    }
+                }
+            });
+
+            if (!targetSkinnedMesh) {
+                console.warn('[VRMStage] No SkinnedMesh with skeleton found');
+                return;
+            }
+
+            /**
+             * MIXER TARGETING
+             * We use the SkinnedMesh as the mixer root.
+             * SkeletonUtils.retargetClip produces tracks in ".bones[Name].property" format.
+             * These tracks bind perfectly to a SkinnedMesh root.
+             */
+            const mixer = new THREE.AnimationMixer(targetSkinnedMesh);
+            mixerRef.current = mixer;
+
+            // Grounding
+            const bbox = new THREE.Box3().setFromObject(model);
+            model.position.y = -bbox.min.y;
+
+            const animFiles = [
+                { name: 'idle', file: 'Idle (1).fbx' },
+                { name: 'talking_1', file: 'Talking.fbx' },
+                { name: 'talking_2', file: 'Talking (1).fbx' }
+            ];
+
+            animFiles.forEach((cfg) => {
+                fbxLoader.load(`/animations/${cfg.file}`, (fbx) => {
+                    if (!isMounted) return;
+                    try {
+                        const sourceClip = fbx.animations[0];
+                        if (!sourceClip) return;
+
+                        // Find source that has a skeleton
+                        let sourceObj: any = fbx;
+                        fbx.traverse(c => { 
+                            if ((c as any).isSkinnedMesh && (c as THREE.SkinnedMesh).skeleton) sourceObj = c;
+                        });
+
+                        const retargetedClip = SkeletonUtils.retargetClip(targetSkinnedMesh!, sourceObj, sourceClip, { 
+                            names: AVATURN_TO_MIXAMO_MAP,
+                            hip: 'mixamorig:Hips'
+                        });
+
+                        // Standard scaling for Mixamo (cm) to Three.js (m)
+                        retargetedClip.tracks.forEach(track => {
+                            if (track.name.toLowerCase().includes('position')) {
+                                for (let i = 0; i < track.values.length; i++) {
+                                    track.values[i] *= 0.01;
+                                }
+                            }
+                        });
+
+                        const action = mixer.clipAction(retargetedClip);
+                        actionsRef.current[cfg.name] = action;
+
+                        if (cfg.name === 'idle') {
+                            action.play();
+                            activeActionRef.current = action;
+                        }
+                    } catch (e) {
+                        console.error(`[VRMStage] Retargeting failed for ${cfg.file}:`, e);
+                    }
+                });
+            });
+        });
+
+        // LOOP
+        let frameId: number;
+        let lastTime = performance.now();
+
+        const animate = () => {
+            if (!isMounted) return;
+            frameId = requestAnimationFrame(animate);
+
+            const now = performance.now();
+            const dt = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+
+            if (mixerRef.current) {
+                mixerRef.current.update(dt);
+            }
+
+            // LIP SYNC & BLINKING
+            const face = faceMeshRef.current;
+            if (face && face.morphTargetDictionary && face.morphTargetInfluences) {
+                const dict = face.morphTargetDictionary;
+                const inf = face.morphTargetInfluences;
+                const vol = agentVolume.volume;
+
+                const setMorph = (name: string, val: number, speed = 0.2) => {
+                    const idx = dict[name];
+                    if (idx !== undefined) inf[idx] = THREE.MathUtils.lerp(inf[idx], val, speed);
+                };
+
+                setMorph('jawOpen', vol * 1.5, 0.3);
+                setMorph('mouthOpen', vol * 1.0, 0.3);
+                setMorph('v_aa', agentVolume.a * 1.2, 0.3);
+                setMorph('v_ih', agentVolume.i * 1.2, 0.3);
+                setMorph('v_ou', agentVolume.u * 1.2, 0.3);
+
+                const blink = (now % 4000) < 150 ? 1 : 0;
+                setMorph('eyeBlinkLeft', blink, 0.5);
+                setMorph('eyeBlinkRight', blink, 0.5);
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        return () => {
+            isMounted = false;
+            cancelAnimationFrame(frameId);
+            window.removeEventListener('resize', handleResize);
+            renderer.dispose();
+            controls.dispose();
+        };
+    }, [personaName]);
+
+    // Dynamic Speaking Animation Switch
+    useEffect(() => {
+        const vol = agentVolume.volume;
+        const isSpeaking = vol > 0.05;
+
+        if (isSpeaking && activeAnimNameRef.current === 'idle') {
+            const next = Math.random() > 0.5 ? 'talking_1' : 'talking_2';
+            const action = actionsRef.current[next];
+            if (action && activeActionRef.current) {
+                action.reset().setEffectiveWeight(1).fadeIn(0.2).play();
+                activeActionRef.current.fadeOut(0.2);
+                activeActionRef.current = action;
+                activeAnimNameRef.current = next;
+            }
+        } else if (!isSpeaking && activeAnimNameRef.current.startsWith('talking')) {
+            const idle = actionsRef.current['idle'];
+            if (idle && activeActionRef.current) {
+                idle.reset().setEffectiveWeight(1).fadeIn(0.4).play();
+                activeActionRef.current.fadeOut(0.4);
+                activeActionRef.current = idle;
+                activeAnimNameRef.current = 'idle';
+            }
+        }
+    }, [agentVolume.volume]);
+
+    return (
+        <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0 }}>
+            <canvas ref={canvasRef} style={{ display: 'block' }} />
+        </div>
+    );
+}
+</file>
+
+<file path="src/hooks/useGeminiLive.ts">
+'use client';
+import { useRef, useCallback, useState, useEffect } from 'react';
+
+interface UseGeminiLiveProps {
+  onTranscript: (text: string, role: 'agent' | 'user') => void;
+  onAudioChunk: (chunk: Int16Array) => void;
+  onThinking?: (status: string) => void;
+  onError?: (msg: string) => void;
+}
+
+/**
+ * useGeminiLive Hook - [v1alpha Native Audio 2.5 Final]
+ * Optimized for Gemini 2.5 Flash Native Audio with lipsync bridge.
+ */
+export function useGeminiLive({ onTranscript, onAudioChunk, onThinking, onError }: UseGeminiLiveProps) {
+  const socketRef = useRef<WebSocket | null>(null);
+  const [connected, setConnected] = useState(false);
+
+  const connect = useCallback(async (apiKey: string) => {
+    if (socketRef.current) socketRef.current.close();
+
+    // 1. STABLE 2026 BIDI ENDPOINT
+    const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+    console.log('[GeminiLive] 📡 Connecting to v1alpha BidiGenerateContent...');
+    
+    const ws = new WebSocket(url);
+    socketRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('[GeminiLive] 📡 WebSocket Open. Syncing Setup...');
+      setConnected(true);
+      
+      const setup = {
+        setup: {
+          // 2. THE MODEL STRING FROM YOUR CONSOLE FETCH
+          model: 'models/gemini-2.5-flash-native-audio-latest', 
+          generationConfig: { responseModalities: ['AUDIO'] }
+        }
+      };
+      ws.send(JSON.stringify(setup));
+    };
+
+    ws.onmessage = async (event) => {
+      try {
+        const text = typeof event.data === 'string' ? event.data : await (event.data as Blob).text();
+        const data = JSON.parse(text);
+        
+        if (data.setupComplete) {
+          console.log('[GeminiLive] 🎊 SETUP ACKNOWLEDGED.');
+          onThinking?.('Online');
+        }
+
+        if (data.serverContent?.modelTurn?.parts) {
+          data.serverContent.modelTurn.parts.forEach((p: any) => {
+            if (p.text) onTranscript(p.text, 'agent');
+            if (p.inlineData) {
+              // Convert Base64 Audio to PCM for the Wawa Player (Lipsync bridge)
+              const b = atob(p.inlineData.data);
+              const u = new Uint8Array(b.length);
+              for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i);
+              onAudioChunk(new Int16Array(u.buffer));
+            }
+          });
+        }
+      } catch (e) {
+        console.error('[GeminiLive] Message processing error:', e);
+      }
+    };
+
+    ws.onclose = (e) => {
+      console.log(`[GeminiLive] 🔌 Closed | Code: ${e.code}`);
+      setConnected(false);
+      socketRef.current = null;
+    };
+
+    ws.onerror = (e) => {
+      console.error('[GeminiLive] WebSocket Error:', e);
+      onError?.('Connection Error');
+    };
+  }, [onTranscript, onAudioChunk, onThinking, onError]);
+
+  const disconnect = useCallback(() => {
+    socketRef.current?.close();
+  }, []);
+
+  const sendAudio = useCallback((base64: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        realtimeInput: {
+          mediaChunks: [{
+            mimeType: 'audio/pcm;rate=16000',
+            data: base64
+          }]
+        }
+      }));
+    }
+  }, []);
+
+  const sendText = useCallback((text: string) => {
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
+      socketRef.current.send(JSON.stringify({
+        clientContent: {
+          turns: [{
+            role: 'user',
+            parts: [{ text }]
+          }],
+          turnComplete: true
+        }
+      }));
+    }
+  }, []);
+
+  useEffect(() => {
+    return () => socketRef.current?.close();
+  }, []);
+
+  return { connected, connect, disconnect, sendAudio, sendText };
+}
+</file>
+
+<file path="src/app/layout.tsx">
+import type { Metadata } from 'next';
+import './globals.css';
+
+export const metadata: Metadata = {
+  title: 'Zaute AI — Your Brutally Honest 3D Fashion Designer',
+  description:
+    'Real-time AI fashion critique and 3D design powered by Zaute. Present your outfit and get expert-level feedback or collaborate on high-fidelity sketches.',
+  keywords: ['fashion', 'AI designer', '3D character', 'Zaute', 'real-time'],
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body suppressHydrationWarning>{children}</body>
+    </html>
+  );
+}
+</file>
+
+<file path="src/components/CameraFeed.tsx">
+'use client';
+
+import { useRef, useEffect, useState, useCallback } from 'react';
+
+interface CameraFeedProps {
+    enabled: boolean;
+    onFrame: (frameBase64: string) => void;
+}
+
+export default function CameraFeed({ enabled, onFrame }: CameraFeedProps) {
+    const videoRef = useRef<HTMLVideoElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const streamRef = useRef<MediaStream | null>(null);
+    const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const [hasCamera, setHasCamera] = useState(false);
+
+    // Start/stop camera
+    useEffect(() => {
+        if (enabled) {
+            startCamera();
+        } else {
+            stopCamera();
+        }
+
+        return () => {
+            stopCamera();
+        };
+    }, [enabled]);
+
+    const startCamera = useCallback(async () => {
+        try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'user',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 },
+                },
+                audio: false, // Audio handled separately
+            });
+
+            streamRef.current = stream;
+
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+                await videoRef.current.play();
+                setHasCamera(true);
+                startFrameCapture();
+            }
+        } catch (err) {
+            console.error('[CameraFeed] Failed to start camera:', err);
+            setHasCamera(false);
+        }
+    }, []);
+
+    const stopCamera = useCallback(() => {
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach((track) => track.stop());
+            streamRef.current = null;
+        }
+
+        setHasCamera(false);
+    }, []);
+
+    // Capture 1 frame per second as Base64 JPEG
+    const startFrameCapture = useCallback(() => {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+
+        intervalRef.current = setInterval(() => {
+            const video = videoRef.current;
+            const canvas = canvasRef.current;
+            if (!video || !canvas || video.readyState < 2) return;
+
+            // Downscale for efficient transmission
+            canvas.width = 640;
+            canvas.height = 480;
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
+
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            const base64 = dataUrl.split(',')[1];
+            if (base64) {
+                onFrame(base64);
+            }
+        }, 1000); // 1 FPS
+    }, [onFrame]);
+
+    return (
+        <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+            {hasCamera ? (
+                <video
+                    ref={videoRef}
+                    playsInline
+                    muted
+                    autoPlay
+                    style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }}
+                />
+            ) : (
+                <div className="camera-placeholder" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%', backgroundColor: 'rgba(0,0,0,0.5)', borderRadius: 'inherit' }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ marginBottom: '16px' }}>
+                            <label className="glass-button" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', cursor: 'pointer', padding: '12px 24px', borderRadius: '30px', fontSize: '1.2rem' }}>
+                                📤 Upload Photo
+                                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                        const reader = new FileReader();
+                                        reader.onload = (ev) => {
+                                            const base64 = (ev.target?.result as string).split(',')[1];
+                                            if (base64) onFrame(base64);
+                                        };
+                                        reader.readAsDataURL(e.target.files[0]);
+                                    }
+                                }} />
+                            </label>
+                        </div>
+                        <div style={{ fontFamily: 'var(--font-serif)', fontSize: '1.1rem', opacity: 0.7 }}>
+                            {enabled ? 'Camera off or unavailable' : 'Camera is off'}
+                        </div>
+                    </div>
+                </div>
+            )}
+            {/* Hidden canvas for frame extraction */}
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+        </div>
+    );
+}
+</file>
+
+<file path="src/components/CatalogLabel.tsx">
+import React from 'react';
+
+interface CatalogLabelProps {
+    title: string;
+    subtitle: string;
+    status?: 'active' | 'idle';
+    className?: string;
+}
+
+export default function CatalogLabel({ title, subtitle, status = 'active', className = '' }: CatalogLabelProps) {
+    return (
+        <div className={`catalog-label ${className}`} style={{
+            position: 'absolute',
+            bottom: '16px',
+            left: '16px',
+            background: 'rgba(12, 10, 9, 0.4)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            padding: '12px 16px',
+            borderRadius: '12px',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '2px',
+            zIndex: 10,
+            maxWidth: 'calc(100% - 32px)'
+        }}>
+            <div style={{ 
+                fontFamily: 'var(--font-mono)', 
+                fontSize: '12px', 
+                fontWeight: 700,
+                color: 'var(--text-stone)',
+                textTransform: 'uppercase',
+                letterSpacing: '-0.02em',
+                lineHeight: 1.1
+            }}>
+                {title}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <div style={{ 
+                    width: '6px', 
+                    height: '6px', 
+                    borderRadius: '50%', 
+                    background: status === 'active' ? 'var(--color-acid-lime)' : 'rgba(231, 229, 228, 0.3)',
+                    flexShrink: 0
+                }} />
+                <span style={{ 
+                    fontFamily: 'var(--font-mono)', 
+                    fontSize: '10px', 
+                    color: 'rgba(231, 229, 228, 0.6)',
+                    letterSpacing: '0em',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
+                }}>
+                    {subtitle}
+                </span>
+            </div>
+        </div>
+    );
+}
+</file>
+
+<file path="src/components/RotatingHeroText.tsx">
+'use client';
+
+import React, { useState, useEffect, useRef } from 'react';
+
+const WORDS = ['Fashion critic', '3D AI Designer', '3D AI Agent'];
+
+export default function RotatingHeroText() {
+    const [index, setIndex] = useState(0);
+    const [isMelting, setIsMelting] = useState(false);
+    const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    useEffect(() => {
+        const rotate = () => {
+            setIsMelting(true);
+            setTimeout(() => {
+                setIndex((prev) => (prev + 1) % WORDS.length);
+                setIsMelting(false);
+            }, 300);
+        };
+
+        timerRef.current = setInterval(rotate, 3500);
+        return () => {
+            if (timerRef.current) clearInterval(timerRef.current);
+        };
+    }, []);
+
+    return (
+        <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'flex-start',
+            gap: '0px',
+            textAlign: 'left',
+            marginTop: '10rem',
+            marginBottom: '3rem',
+            zIndex: 10,
+            userSelect: 'none',
+            whiteSpace: 'nowrap',
+            width: '100%'
+        }}>
+            {/* Inline SVG Filter for Gooey Effect */}
+            <svg style={{ position: 'absolute', width: 0, height: 0 }}>
+                <defs>
+                    <filter id="gooey-filter">
+                        <feGaussianBlur 
+                            in="SourceGraphic" 
+                            stdDeviation={isMelting ? '12' : '0'} 
+                            result="blur" 
+                        />
+                        <feColorMatrix 
+                            in="blur" 
+                            mode="matrix" 
+                            values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 20 -10" 
+                            result="gooey" 
+                        />
+                        <feComposite in="SourceGraphic" in2="gooey" operator="atop" />
+                    </filter>
+                </defs>
+            </svg>
+
+            <span style={{
+                fontFamily: 'var(--font-serif)',
+                fontSize: 'clamp(2.5rem, 8vw, 6rem)',
+                textTransform: 'uppercase',
+                fontWeight: 700,
+                color: '#f6f4f0',
+                letterSpacing: '-0.05em',
+                lineHeight: 0.85,
+                textAlign: 'left'
+            }}>
+                meet your
+            </span>
+
+            <div style={{ 
+                filter: 'url(#gooey-filter)',
+                transition: 'filter 0.3s cubic-bezier(0.19, 1, 0.22, 1)',
+                height: 'clamp(2rem, 7vw, 5.5rem)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'flex-start',
+                width: '100%'
+            }}>
+                <span 
+                    key={WORDS[index]}
+                    style={{
+                        fontFamily: 'var(--font-serif)',
+                        fontSize: 'clamp(2rem, 7vw, 5.5rem)',
+                        textTransform: 'uppercase',
+                        fontWeight: 700,
+                        fontStyle: 'normal',
+                        color: 'var(--color-acid-lime)',
+                        letterSpacing: '-0.05em',
+                        display: 'block',
+                        transition: 'opacity 0.2s',
+                        opacity: isMelting ? 0.3 : 1,
+                        lineHeight: 0.85,
+                        textAlign: 'left'
+                    }}
+                >
+                    {WORDS[index]}
+                </span>
+            </div>
+        </div>
+    );
+}
+</file>
+
+<file path="src/app/agent/[agentId]/page.tsx">
+'use client';
+
+import React, { useState, useEffect, useRef, useCallback, use } from 'react';
+import { useAudioCapture } from '@/hooks/useAudioCapture';
+import { useAudioPlayback } from '@/hooks/useAudioPlayback';
+import { useGeminiOrchestrator } from '@/hooks/useGeminiLiveSDK';
+import ChatPanel, { ChatMessage } from '@/components/ChatPanel';
+import ActiveCallUI from '@/components/ActiveCallUI';
+import { PERSONAS, Persona } from '@/lib/agents';
+import { useRouter } from 'next/navigation';
+import { 
+  PERSONA_SYSTEM_PROMPT, 
+  TONY_SYSTEM_PROMPT, 
+  GINA_SYSTEM_PROMPT, 
+  ARIA_SYSTEM_PROMPT 
+} from '@/lib/prompts';
+
+const SYSTEM_PROMPTS: Record<string, string> = {
+  despina: PERSONA_SYSTEM_PROMPT,
+  tony: TONY_SYSTEM_PROMPT,
+  gina: GINA_SYSTEM_PROMPT,
+  aria: ARIA_SYSTEM_PROMPT,
+};
+
+export default function AgentPage({ params }: { params: Promise<{ agentId: string }> }) {
+  const { agentId } = use(params);
+  const router = useRouter();
+  
+  // ── Session State ─────────────────────────────────────────
+  const [sessionActive, setSessionActive] = useState(false);
+  const [sessionReady, setSessionReady] = useState(false);
+  const [activePersona, setActivePersona] = useState<Persona | null>(null);
+
+  // ── UI State ──────────────────────────────────────────────
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [thinkingStatus, setThinkingStatus] = useState<string | null>(null);
+  const [agentGesture, setAgentGesture] = useState<string | null>(null);
+  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [isChatExpanded, setIsChatExpanded] = useState(false);
+  const [micEnabled, setMicEnabled] = useState(false);
+  const [userPhoto, setUserPhoto] = useState<string | null>(null);
+
+  // ── Audio Ref for VRM Lipsync ────────────────────────────
+  const agentVolumeRef = useRef({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
+
+  // ── Audio Hooks ──────────────────────────────────────────
+  const { playChunk, stopPlayback, cleanup, initAudio } = useAudioPlayback((visemes) => {
+    agentVolumeRef.current = visemes;
+  });
+  
+  // ── SDK Implementation ───────────────────────────────────
+  const {
+    connected,
+    startAgent,
+    disconnect,
+    sendFitForCritique,
+    sendGarmentPhoto, // ADDED: Now we pull this from the hook
+    sendText,
+    sendAudio,
+  } = useGeminiOrchestrator({
+    onTranscript: (text, role) => {
+      setMessages(prev => {
+        const lastMsg = prev[prev.length - 1];
+        if (lastMsg && lastMsg.role === role && !lastMsg.imageBase64) {
+          return [
+            ...prev.slice(0, -1),
+            { ...lastMsg, text: lastMsg.text + text }
+          ];
+        }
+        return [...prev, {
+          id: `msg-${Date.now()}`,
+          text,
+          role: role as any,
+          timestamp: Date.now()
+        }];
+      });
+    },
+    onAudioChunk: (base64: string) => {
+      const binary = window.atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      if (bytes.length > 0) {
+        playChunk(new Int16Array(bytes.buffer));
+      }
+    },
+    onImageReady: (url) => {
+      console.log('[UI] Nano Banana 2 Image Received:', url);
+      setMessages(prev => [...prev, {
+        id: `img-${Date.now()}`,
+        text: "I've generated a fashion sketch for you.",
+        role: 'agent',
+        timestamp: Date.now(),
+        imageBase64: url
+      }]);
+    },
+    onThinking: (status) => setThinkingStatus(status || null), // ADDED: Wires up your scanning UI!
+    onError: (msg) => console.error(`[Agent SDK Error] ${msg}`)
+  });
+
+  const { startCapture, stopCapture } = useAudioCapture((base64) => {
+    if (micEnabled && connected) sendAudio(base64);
+  });
+
+  // ── Initialize Session on Mount ──────────────────────────
+  useEffect(() => {
+    const persona = PERSONAS.find(p => p.id === agentId);
+    if (!persona) {
+      router.push('/');
+      return;
+    }
+
+    setActivePersona(persona);
+    setSessionActive(true);
+
+    return () => {
+      disconnect();
+      stopCapture();
+      stopPlayback();
+      cleanup();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentId, router]);
+
+  const handleStartSession = async () => {
+    console.log('[UI] 🔓 Unlocking Audio & Connecting Agent SDK...');
+    
+    try {
+        await initAudio(); 
+        await startAgent(agentId as any);
+        
+        setSessionReady(true);
+        startCapture();
+        setMicEnabled(true);
+    } catch (err) {
+        console.error('[UI] Session Start Failed:', err);
+    }
+  };
+
+  const handleEndSession = useCallback(() => {
+    router.push('/');
+  }, [router]);
+
+  const handleToggleMic = useCallback(() => {
+    setMicEnabled(prev => !prev);
+  }, []);
+
+  const handleUserPhoto = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const tempId = `upload-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: tempId,
+      text: "Uploading photo...",
+      role: 'user',
+      timestamp: Date.now()
+    }]);
+    setThinkingStatus("Processing photo...");
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_W = 1024, MAX_H = 1024;
+      let w = img.width, h = img.height;
+      if (w > MAX_W || h > MAX_H) {
+        const ratio = Math.min(MAX_W / w, MAX_H / h);
+        w *= ratio; h *= ratio;
+      }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const base64Data = dataUrl.split(',')[1];
+        setUserPhoto(base64Data);
+        
+        sendFitForCritique(base64Data);
+        
+        setMessages(prev => prev.map(m => 
+          m.id === tempId ? { ...m, text: "Here is my photo. What do you think?", imageBase64: base64Data } : m
+        ));
+        setThinkingStatus(null);
+      }
+    };
+    img.src = URL.createObjectURL(file);
+  }, [sendFitForCritique]); // Updated dependency
+
+  const handleGarmentPhoto = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const tempId = `upload-garment-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: tempId,
+      text: "Uploading dress...",
+      role: 'user',
+      timestamp: Date.now()
+    }]);
+    setThinkingStatus("Analyzing item...");
+
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      const MAX_W = 1024, MAX_H = 1024;
+      let w = img.width, h = img.height;
+      if (w > MAX_W || h > MAX_H) {
+        const ratio = Math.min(MAX_W / w, MAX_H / h);
+        w *= ratio; h *= ratio;
+      }
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, w, h);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+        const base64Data = dataUrl.split(',')[1];
+        
+        // FIXED: Now we actually send the garment to the agent!
+        sendGarmentPhoto(base64Data);
+        
+        setMessages(prev => prev.map(m => 
+          m.id === tempId ? { ...m, text: "Can you try this on me?", imageBase64: base64Data } : m
+        ));
+        setThinkingStatus(null);
+      }
+    };
+    img.src = URL.createObjectURL(file);
+  }, [sendGarmentPhoto]); // Updated dependency
+
+  const handleSendMessage = useCallback((text: string) => {
+    sendText(text);
+    setMessages(prev => [...prev, {
+      id: `msg-${Date.now()}`,
+      text,
+      role: 'user',
+      timestamp: Date.now()
+    }]);
+  }, [sendText]);
+
+  useEffect(() => {
+    if (isChatExpanded) {
+      stopPlayback();
+      cleanup();
+      stopCapture();
+      setMicEnabled(false);
+    }
+  }, [isChatExpanded, stopPlayback, cleanup, stopCapture]);
+
+  if (!activePersona) return null;
+
+  return (
+    <main className="app-container">
+      <div className="camera-overlay" />
+
+      {thinkingStatus && (
+        <div className="scan-overlay">
+          <div className="scan-line" />
+          <div className="scan-line" />
+        </div>
+      )}
+
+      {!sessionReady && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 10000,
+          background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(40px)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+          gap: '24px', color: '#fff', textAlign: 'center'
+        }}>
+          <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '60px', marginBottom: '12px' }} />
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 700, letterSpacing: '0.05em' }}>
+            READY TO MEET {activePersona?.name.toUpperCase()}?
+          </h2>
+          <p style={{ opacity: 0.5, fontSize: '0.9rem', maxWidth: '300px' }}>
+            Press the button below to initialize the high-fidelity 3D session.
+          </p>
+          <button 
+            onClick={handleStartSession}
+            style={{
+              background: '#cefe00', color: '#000', border: 'none',
+              padding: '16px 48px', borderRadius: '14px', fontSize: '1rem',
+              fontWeight: 800, cursor: 'pointer', transition: 'all 0.3s',
+              boxShadow: '0 8px 32px rgba(206, 254, 0, 0.3)'
+            }}>
+            START EXPERIENCE
+          </button>
+        </div>
+      )}
+
+      <div className="ui-layer">
+        <header className="top-bar">
+          <div className="brand" style={{ cursor: 'pointer' }} onClick={() => router.push('/')}>
+            <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '42px' }} />
+          </div>
+        </header>
+
+        <div className="main-content" style={{ display: 'flex', width: '100%', height: 'calc(100vh - 80px)', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, display: isChatExpanded ? 'none' : 'flex' }}>
+            <ActiveCallUI
+              persona={activePersona}
+              isThinking={!!thinkingStatus}
+              sessionReady={sessionReady}
+              agentVolumeRef={agentVolumeRef}
+              agentGesture={agentGesture}
+              onEndSession={handleEndSession}
+            />
+          </div>
+
+          <div style={{ width: isChatExpanded ? '100%' : '440px', height: '100%', transition: 'all 0.4s var(--ease-out-expo)', zIndex: 30, position: 'absolute', right: 0, top: 0 }}>
+            <ChatPanel
+               messages={messages}
+               onSendMessage={handleSendMessage}
+               isOpen={true}
+               onToggle={() => {}}
+               isExpanded={isChatExpanded}
+               onToggleExpand={() => setIsChatExpanded(!isChatExpanded)}
+               personaName={activePersona.name}
+               canTryOn={!!userPhoto}
+               micEnabled={micEnabled}
+               onToggleMic={handleToggleMic}
+               onUploadPhoto={handleUserPhoto}
+               onTryFit={handleGarmentPhoto}
+               onEndSession={handleEndSession}
+               onRequestStudioEdit={() => {}}
+            />
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+</file>
+
+<file path="src/hooks/useAudioCapture.ts">
+'use client';
+import { useRef, useCallback, useState } from 'react';
+
+export function useAudioCapture(onAudioData: (base64: string) => void, onVolume?: (vol: number) => void) {
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const processorRef = useRef<ScriptProcessorNode | null>(null);
+  const [isCapturing, setIsCapturing] = useState(false);
+
+  const startCapture = useCallback(async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+      });
+      streamRef.current = stream;
+
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      const context = new AudioContextClass({ sampleRate: 16000 }); // Force 16kHz
+      audioContextRef.current = context;
+
+      const source = context.createMediaStreamSource(stream);
+      const processor = context.createScriptProcessor(4096, 1, 1);
+      processorRef.current = processor;
+
+      processor.onaudioprocess = (e) => {
+        const inputData = e.inputBuffer.getChannelData(0);
+        let sum = 0;
+        
+        const pcm16 = new Int16Array(inputData.length);
+        for (let i = 0; i < inputData.length; i++) {
+          sum += Math.abs(inputData[i]);
+          let s = Math.max(-1, Math.min(1, inputData[i]));
+          pcm16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+        }
+
+        if (onVolume) onVolume(sum / inputData.length);
+
+        const uint8 = new Uint8Array(pcm16.buffer);
+        let binary = '';
+        for (let i = 0; i < uint8.byteLength; i++) {
+          binary += String.fromCharCode(uint8[i]);
+        }
+        onAudioData(window.btoa(binary));
+      };
+
+      source.connect(processor);
+      processor.connect(context.destination);
+      setIsCapturing(true);
+    } catch (err) {
+      console.error('[AudioCapture] Failed:', err);
+    }
+  }, [onAudioData, onVolume]);
+
+  const stopCapture = useCallback(() => {
+    if (processorRef.current) {
+      processorRef.current.disconnect();
+      processorRef.current = null;
+    }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(t => t.stop());
+      streamRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    setIsCapturing(false);
+  }, []);
+
+  return { startCapture, stopCapture, isCapturing };
+}
+</file>
+
+<file path="src/hooks/useSocketConnection.ts">
+'use client';
+
+import { useRef, useCallback, useEffect, useState } from 'react';
+import { io, Socket } from 'socket.io-client';
+
+const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:3001';
+
+interface UseSocketConnectionProps {
+    onTranscript: (text: string, role: 'agent' | 'user') => void;
+    onThought?: (text: string) => void;
+    onGeneratedOutfit: (imageBase64: string | null, caption: string) => void;
+    onThinking: (status: string) => void;
+    onSessionStarted: (mode: 'live') => void;
+    onError: (message: string) => void;
+    onInterrupted: () => void;
+    onAudioOut: (audioBase64: string) => void;
+    onAgentGesture: (animation: string) => void;
+}
+
+export function useSocketConnection(props: UseSocketConnectionProps) {
+    const socketRef = useRef<Socket | null>(null);
+    const callbacksRef = useRef(props);
+    const [connected, setConnected] = useState(false);
+
+    useEffect(() => {
+        callbacksRef.current = props;
+    }, [props]);
+
+    // Initialize socket — connects to the separate backend server
+    useEffect(() => {
+        const socket = io(BACKEND_URL, {
+            autoConnect: false,
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            withCredentials: true,
+            transports: ['websocket', 'polling'],
+        });
+
+        socket.on('connect', () => {
+            console.log('[Socket] Connected to backend at', BACKEND_URL);
+            setConnected(true);
+        });
+
+        socket.on('disconnect', () => {
+            console.log('[Socket] Disconnected');
+            setConnected(false);
+        });
+
+        socket.on('session-started', (data: { mode: 'live' }) => {
+            callbacksRef.current.onSessionStarted(data.mode);
+        });
+
+        socket.on('transcript', (data: { text: string; role: 'agent' | 'user' }) => {
+            callbacksRef.current.onTranscript(data.text, data.role);
+        });
+        
+        socket.on('agent-thought', (data: { text: string }) => {
+            callbacksRef.current.onThought?.(data.text);
+        });
+
+        socket.on('generated-outfit', (data: { imageBase64: string | null; caption: string }) => {
+            callbacksRef.current.onGeneratedOutfit(data.imageBase64, data.caption);
+        });
+
+        socket.on('agent-thinking', (data: { status: string }) => {
+            callbacksRef.current.onThinking(data.status);
+        });
+
+        socket.on('audio-out', (audioBase64: string) => {
+            callbacksRef.current.onAudioOut(audioBase64);
+        });
+
+        socket.on('interrupted', () => {
+            callbacksRef.current.onInterrupted();
+        });
+
+        socket.on('agent-gesture', (data: { animation: string }) => {
+            callbacksRef.current.onAgentGesture(data.animation);
+        });
+
+        socket.on('error-msg', (data: { message: string }) => {
+            callbacksRef.current.onError(data.message);
+        });
+
+        socketRef.current = socket;
+
+        return () => {
+            socket.disconnect();
+            socketRef.current = null;
+        };
+    }, []);
+
+    const startSession = useCallback((voice?: string, mode?: 'stylist' | 'designer') => {
+        const socket = socketRef.current;
+        if (!socket) return;
+
+        if (!socket.connected) {
+            socket.connect();
+        }
+
+        const emitStart = () => {
+            socket.emit('start-session', { voice, mode });
+        };
+
+        if (socket.connected) {
+            emitStart();
+        } else {
+            socket.once('connect', emitStart);
+        }
+    }, []);
+
+    const endSession = useCallback(() => {
+        const socket = socketRef.current;
+        if (socket) {
+            socket.emit('end-session');
+            socket.disconnect();
+        }
+        setConnected(false);
+    }, []);
+
+    const sendAudioChunk = useCallback((audioBase64: string) => {
+        socketRef.current?.emit('audio-in', audioBase64);
+    }, []);
+
+    const sendVideoFrame = useCallback((frameBase64: string) => {
+        socketRef.current?.emit('video-frame', frameBase64);
+    }, []);
+
+    const sendText = useCallback((text: string) => {
+        socketRef.current?.emit('text-in', text);
+    }, []);
+
+    const sendGarmentPhoto = useCallback((frameBase64: string) => {
+        socketRef.current?.emit('garment-photo', frameBase64);
+    }, []);
+
+    const requestOutfit = useCallback((prompt: string, eventContext: string, styleNotes?: string) => {
+        socketRef.current?.emit('generate-outfit', { prompt, eventContext, styleNotes });
+    }, []);
+
+    return {
+        connected,
+        startSession,
+        endSession,
+        sendAudioChunk,
+        sendVideoFrame,
+        sendGarmentPhoto,
+        sendText,
+        requestOutfit,
+    };
+}
+</file>
+
+<file path="src/components/OutfitGallery.tsx">
+'use client';
+
+import { useState, useRef, useEffect } from 'react';
+import type { GeneratedOutfit } from '@/lib/types';
+
+interface OutfitGalleryProps {
+    outfits: GeneratedOutfit[];
+}
+
+export default function OutfitGallery({ outfits }: OutfitGalleryProps) {
+    const [fullscreenImage, setFullscreenImage] = useState<string | null>(null);
+    const gridRef = useRef<HTMLDivElement>(null);
+
+    // Auto-scroll to latest look
+    useEffect(() => {
+        if (gridRef.current) {
+            gridRef.current.scrollTo({
+                top: gridRef.current.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
+    }, [outfits.length]);
+
+    const handleDownload = (imageBase64: string, id: string) => {
+        const link = document.createElement('a');
+        link.href = `data:image/jpeg;base64,${imageBase64}`;
+        link.download = `bestie-look-${id}.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return (
+        <div className="atelier-container">
+            <div className="atelier-header" style={{ paddingTop: '10px', paddingBottom: '15px' }}>
+                <h2 style={{ margin: 0 }}>
+                    <span className="text-silver" style={{ fontFamily: 'Supercharge, var(--font-serif)', fontSize: '1.8rem', fontWeight: 600, letterSpacing: '2px', textTransform: 'uppercase' }}>My Looks</span>
+                </h2>
+            </div>
+
+            <div className="atelier-grid" ref={gridRef}>
+                {/* User's Generated Outfits */}
+                {outfits.map((outfit) => (
+                    <div key={outfit.id} className="atelier-card generated" onClick={() => {
+                        if (outfit.imageBase64) setFullscreenImage(`data:image/jpeg;base64,${outfit.imageBase64}`);
+                    }}>
+                        {outfit.imageBase64 ? (
+                            <img
+                                src={`data:image/jpeg;base64,${outfit.imageBase64}`}
+                                alt="Generated Asset"
+                                className="atelier-img"
+                            />
+                        ) : (
+                            <div className="atelier-placeholder-inner loading">
+                                <div className="spinner"></div>
+                            </div>
+                        )}
+                        <span className="atelier-label">{outfit.id.slice(0, 16)}...</span>
+
+                        {/* Download button overlaid */}
+                        {outfit.imageBase64 && (
+                            <button
+                                className="download-fab"
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleDownload(outfit.imageBase64 as string, outfit.id);
+                                }}
+                            >
+                                📥
+                            </button>
+                        )}
+                    </div>
+                ))}
+
+                {/* Fill empty slots to always show the 2 placeholder cards like the mockup */}
+                {Array.from({ length: Math.max(0, 2 - outfits.length) }).map((_, idx) => (
+                    <div key={`empty-${idx}`} className="atelier-card empty">
+                        <div className="atelier-placeholder-inner"></div>
+                        <span className="atelier-label">Generated Image {outfits.length + idx + 1}</span>
+                    </div>
+                ))}
+            </div>
+
+            {/* Fullscreen overlay */}
+            {fullscreenImage && (
+                <div className="outfit-fullscreen" onClick={() => setFullscreenImage(null)}>
+                    <div className="close-fullscreen">✕</div>
+                    <img src={fullscreenImage} alt="Generated outfit fullscreen view" />
+                </div>
+            )}
+        </div>
+    );
+}
+</file>
+
+<file path="src/hooks/useAudioPlayback.ts">
+'use client';
+
+import { useRef, useCallback, useState } from 'react';
+import { Lipsync } from 'wawa-lipsync';
+
+export interface VisemeData {
+    volume: number;
+    a: number;
+    i: number;
+    u: number;
+    e: number;
+    o: number;
+}
+
+export function useAudioPlayback(onVolumeChange?: (visemes: VisemeData) => void) {
+    const queueRef = useRef<AudioBufferSourceNode[]>([]);
+    const nextStartTimeRef = useRef(0);
+    const animationFrameRef = useRef<number | null>(null);
+    
+    const isPlayingRef = useRef(false);
+    const [isPlaying, setIsPlaying] = useState(false);
+
+    const PLAYBACK_SAMPLE_RATE = 24000;
+    const lipsyncRef = useRef<Lipsync | null>(null);
+
+    const getContext = useCallback(() => {
+        if (!lipsyncRef.current) {
+            try {
+                // STOP MONKEY-PATCHING: Let Wawa create its own AudioContext and Analyser
+                const ls = new Lipsync({ fftSize: 1024, historySize: 5 });
+                lipsyncRef.current = ls;
+            } catch (err) {
+                console.warn('[AudioPlayback] Wawa Lipsync init failed', err);
+            }
+        }
+
+        const ls = lipsyncRef.current as any;
+        if (ls && ls.audioContext.state === 'suspended') {
+            ls.audioContext.resume();
+        }
+        return ls?.audioContext || null;
+    }, []);
+
+    const playChunk = useCallback(async (pcmData: Int16Array) => {
+        try {
+            const ctx = getContext();
+            const ls = lipsyncRef.current as any;
+            if (!ctx || !ls) return;
+
+            // 1. Explicitly resume to bypass browser-level suspension
+            if (ctx.state === 'suspended') {
+                await ctx.resume();
+            }
+
+            // 2. Convert Int16 PCM to Float32 for Web Audio
+            const float32 = new Float32Array(pcmData.length);
+            for (let i = 0; i < pcmData.length; i++) {
+                float32[i] = pcmData[i] / 32768;
+            }
+
+            // 3. Create buffer at strict 24kHz
+            const audioBuffer = ctx.createBuffer(1, float32.length, PLAYBACK_SAMPLE_RATE);
+            audioBuffer.getChannelData(0).set(float32);
+
+            const source = ctx.createBufferSource();
+            source.buffer = audioBuffer;
+
+            // Route our AI audio straight into Wawa's internal analyser, then to speakers
+            source.connect(ls.analyser);
+            ls.analyser.connect(ctx.destination);
+
+            const now = ctx.currentTime;
+            if (nextStartTimeRef.current < now) {
+                nextStartTimeRef.current = now + 0.05;
+            }
+
+            const startTime = Math.max(now, nextStartTimeRef.current);
+            source.start(startTime);
+            nextStartTimeRef.current = startTime + audioBuffer.duration;
+
+            queueRef.current.push(source);
+            
+            setIsPlaying(true);
+            isPlayingRef.current = true;
+
+            source.onended = () => {
+                queueRef.current = queueRef.current.filter((s) => s !== source);
+                if (queueRef.current.length === 0) {
+                    setIsPlaying(false);
+                    isPlayingRef.current = false;
+                    if (onVolumeChange) onVolumeChange({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
+                }
+            };
+
+            if (onVolumeChange && !animationFrameRef.current) {
+                const updateVolume = () => {
+                    if (isPlayingRef.current && ls) {
+                        try {
+                            ls.processAudio();
+                            const vol = ls.features?.volume || 0;
+                            const activeViseme = ls.viseme; 
+
+                            onVolumeChange({
+                                volume: Math.min(vol * 1.5, 1.0),
+                                a: activeViseme === 'viseme_aa' ? 1.0 : 0,
+                                i: activeViseme === 'viseme_I' ? 1.0 : 0,
+                                u: activeViseme === 'viseme_U' ? 1.0 : 0,
+                                e: activeViseme === 'viseme_E' ? 1.0 : 0,
+                                o: activeViseme === 'viseme_O' ? 1.0 : 0
+                            });
+                        } catch (err) {
+                            console.error('[AudioPlayback] LipSync Analysis Error:', err);
+                        }
+                        
+                        animationFrameRef.current = requestAnimationFrame(updateVolume);
+                    } else {
+                        animationFrameRef.current = null;
+                    }
+                };
+                updateVolume();
+            }
+
+        } catch (err) {
+            console.error('[AudioPlayback] Error playing chunk:', err);
+        }
+    }, [getContext, onVolumeChange]);
+
+    const stopPlayback = useCallback(() => {
+        if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
+        for (const source of queueRef.current) {
+            try { source.stop(); } catch { }
+        }
+        queueRef.current = [];
+        nextStartTimeRef.current = 0;
+        setIsPlaying(false);
+        isPlayingRef.current = false;
+        if (onVolumeChange) onVolumeChange({ volume: 0, a: 0, i: 0, u: 0, e: 0, o: 0 });
+    }, [onVolumeChange]);
+
+    const cleanup = useCallback(() => {
+        stopPlayback();
+        const ls = lipsyncRef.current as any;
+        if (ls && ls.audioContext) {
+            ls.audioContext.close().catch(() => { });
+        }
+        lipsyncRef.current = null;
+    }, [stopPlayback]);
+
+    return { playChunk, stopPlayback, cleanup, initAudio: getContext, isPlaying };
+}
+</file>
+
+<file path="src/components/ActiveCallUI.tsx">
+'use client';
+
+import { Persona } from '@/lib/agents';
+import VRMStage from './VRMStage';
+import { VisemeData } from '@/hooks/useAudioPlayback';
+
+interface ActiveCallUIProps {
+    persona: {
+        name: string;
+        image: string;
+    };
+    isThinking: boolean;
+    sessionReady: boolean;
+    userVolume?: number;
+    agentVolumeRef: React.MutableRefObject<VisemeData>;
+    agentGesture?: string | null;
+    onEndSession?: () => void;
+}
+
+export default function ActiveCallUI({
+    persona,
+    isThinking,
+    sessionReady,
+    agentVolumeRef,
+    agentGesture = null,
+    onEndSession
+}: ActiveCallUIProps) {
+    return (
+        <div className="active-call-ui" style={{ position: 'relative', width: '100%', height: '100%' }}>
+            {/* Back Button Overlay */}
+            <button 
+                onClick={onEndSession}
+                style={{
+                position: 'fixed', top: '2rem', left: '2rem', zIndex: 1000,
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
+                backdropFilter: 'blur(30px)', color: '#fff', borderRadius: '12px',
+                padding: '12px 24px', display: 'flex', alignItems: 'center', gap: '12px',
+                cursor: 'pointer', fontSize: '1rem', fontWeight: 600, fontFamily: "'Inter', sans-serif",
+                transition: 'all 0.3s ease',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.3)'
+            }}>
+                <span style={{ fontSize: '1.8rem', lineHeight: 1 }}>‹</span> Back
+            </button>
+
+            {/* 3D VRM Stage replacing 2D puppets. The CSS makes this fullscreen behind the UI. */}
+            <div className="vrm-stage-wrapper" style={{
+                opacity: 1,
+                pointerEvents: 'auto',
+                width: '100%', height: '100%'
+            }}>
+                <VRMStage
+                    personaName={persona.name}
+                    agentVolumeRef={agentVolumeRef}
+                    isThinking={isThinking}
+                    agentGesture={agentGesture}
+                />
+            </div>
+        </div>
+    );
+}
+</file>
+
+<file path="src/components/LandingOverlay.tsx">
+import { useState, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import RotatingHeroText from './RotatingHeroText';
+import SerratedDivider from './SerratedDivider';
+import StickyNote from './StickyNote';
+import CatalogLabel from './CatalogLabel';
+import Marquee from './Marquee';
+import FeatureGrid from './FeatureGrid';
+import { PERSONAS, Persona } from '@/lib/agents';
+
+interface LandingOverlayProps {
+    exiting: boolean;
+    onStart?: (persona: Persona) => void;
+}
+
+export default function LandingOverlay({ exiting, onStart }: LandingOverlayProps) {
+    const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const router = useRouter();
+
+    const scrollToSection = (id: string) => {
+        const el = document.getElementById(id);
+        if (el) el.scrollIntoView({ behavior: 'smooth' });
+    };
+
+    return (
+        <div className={`landing-overlay neon-grid-bg ${exiting ? 'exiting' : ''}`} style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 1000,
+            background: 'var(--bg-avant-black)',
+            color: 'var(--text-stone)',
+            overflowY: 'auto',
+            scrollBehavior: 'smooth'
+        }} ref={scrollContainerRef}>
+            
+            {/* Top Navigation Bar - Center Pill */}
+            <nav style={{
+                position: 'fixed',
+                top: '20px',
+                left: 0,
+                right: 0,
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '0 40px',
+                zIndex: 1100,
+                pointerEvents: 'none'
+            }}>
+                <div style={{ pointerEvents: 'auto' }}>
+                    <img src="/zaute-logo-v2.png" alt="ZAUTE" style={{ height: '90px', opacity: 1 }} />
+                </div>
+                
+                <div style={{
+                    display: 'flex',
+                    background: 'rgba(12, 10, 9, 0.4)',
+                    backdropFilter: 'blur(32px)',
+                    WebkitBackdropFilter: 'blur(32px)',
+                    padding: '4px',
+                    borderRadius: '999px',
+                    border: '1px solid rgba(255, 255, 255, 0.04)',
+                    pointerEvents: 'auto'
+                }}>
+                    {[
+                        { label: 'Stylist', target: 'designer-selection' },
+                        { label: 'Features', target: 'features' },
+                        { label: 'Contact', target: 'footer' }
+                    ].map(link => (
+                        <button 
+                            key={link.label} 
+                            onClick={() => scrollToSection(link.target)}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--text-stone)',
+                                padding: '8px 20px',
+                                fontSize: '11px',
+                                fontFamily: 'var(--font-mono)',
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                borderRadius: '999px',
+                                cursor: 'pointer',
+                                opacity: 0.6,
+                                transition: 'all 300ms var(--ease-editorial)',
+                            }} className="nav-btn-hover">
+                            {link.label}
+                        </button>
+                    ))}
+                </div>
+
+                <div style={{ pointerEvents: 'auto' }}>
+                    <button style={{
+                        background: 'var(--color-acid-lime)',
+                        color: 'var(--bg-avant-black)',
+                        padding: '10px 24px',
+                        borderRadius: '999px',
+                        fontFamily: 'var(--font-mono)',
+                        fontWeight: 800,
+                        textTransform: 'uppercase',
+                        fontSize: '11px',
+                        border: 'none',
+                        cursor: 'pointer',
+                        boxShadow: '0 4px 20px rgba(206, 254, 0, 0.25)'
+                    }} onClick={() => scrollToSection('designer-selection')}>
+                        Inquire
+                    </button>
+                </div>
+
+            </nav>
+
+            {/* SECTION 1: HERO */}
+            <section id="hero" style={{
+                minHeight: '100vh',
+                display: 'grid',
+                gridTemplateColumns: '45% 55%',
+                padding: '80px 40px 60px',
+                gap: '80px',
+                position: 'relative',
+                maxWidth: '1800px',
+                margin: '0 auto',
+                alignItems: 'center',
+                background: '#060606'
+            }}>
+
+                <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                    <div style={{ marginBottom: '4px' }}>
+                        <RotatingHeroText />
+                    </div>
+                    
+                    <p style={{ 
+                        fontSize: '1.25rem', 
+                        fontFamily: 'var(--font-mono)',
+                        opacity: 0.6, 
+                        maxWidth: '480px', 
+                        lineHeight: 1.5,
+                        marginBottom: '16px',
+                        letterSpacing: '-0.02em'
+                    }}>
+                        Meet Zaute. Your AI fashion confidant. Talk trends, find your spark, and build your next look. It’s the future of getting dressed, simplified!
+                    </p>
+
+                    <button 
+                        onClick={() => scrollToSection('designer-selection')}
+                        style={{
+                            background: 'var(--color-acid-lime)',
+                            color: '#000',
+                            border: 'none',
+                            padding: '16px 48px',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 900,
+                            textTransform: 'uppercase',
+                            borderRadius: '999px',
+                            cursor: 'pointer',
+                            pointerEvents: 'auto',
+                            boxShadow: '0 0 30px rgba(206, 254, 0, 0.2)',
+                            transition: 'all 300ms var(--ease-editorial)',
+                            maxWidth: '240px'
+                        }} className="btn-brutal-hover">
+                        START STYLING
+                    </button>
+                </div>
+
+
+                <div style={{ position: 'relative', height: '100%', minHeight: '600px', width: '100%', maxWidth: '900px', margin: '0 auto' }}>
+                    <div style={{
+                        width: '100%',
+                        height: '100%',
+                        borderRadius: '32px',
+                        overflow: 'hidden',
+                        position: 'relative',
+                        background: '#060606',
+                        border: '1px solid rgba(255, 255, 255, 0.05)'
+                    }}>
+                        <video 
+                            autoPlay 
+                            loop 
+                            muted 
+                            playsInline
+                            style={{ 
+                                width: '100%', 
+                                height: '100%', 
+                                objectPosition: 'center',
+                                opacity: 1
+                            }}
+                        >
+                            <source src="/maniqouue.webm" type="video/webm" />
+                        </video>
+                    </div>
+                    
+                </div>
+            </section>
+            <Marquee />
+
+            {/* SECTION 2: DESIGNER SELECTION */}
+            <section id="designer-selection" style={{
+                padding: '120px 40px',
+                background: 'transparent',
+                minHeight: '100vh',
+                display: 'flex',
+                flexDirection: 'column',
+                justifyContent: 'center',
+                alignItems: 'center'
+            }}>
+                <h2 style={{
+                    fontFamily: 'var(--font-acid-heading)',
+                    fontSize: 'clamp(2rem, 5vw, 4rem)',
+                    fontWeight: 900,
+                    textAlign: 'center',
+                    marginBottom: '80px',
+                    color: 'var(--text-stone)',
+                    lineHeight: 0.9,
+                    letterSpacing: '-0.04em',
+                    textTransform: 'uppercase'
+                }}>
+                    CHOOSE YOUR FASHION PILOT
+                </h2>
+
+                <div style={{ 
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                    gap: '20px',
+                    maxWidth: '1400px',
+                    margin: '0 auto',
+                    paddingBottom: '40px',
+                    width: '100%'
+                }}>
+                    {PERSONAS.map((persona) => (
+                        <div key={persona.id} style={{
+                            cursor: 'pointer',
+                            position: 'relative',
+                            transition: 'transform 400ms var(--ease-editorial)'
+                        }} className="card-hover-scale" onClick={() => {
+                            if (onStart) onStart(persona);
+                            router.push(`/agent/${persona.id}`);
+                        }}>
+                            <div style={{
+                                width: '100%',
+                                aspectRatio: '3/4',
+                                borderRadius: '24px',
+                                overflow: 'hidden',
+                                background: '#060606',
+                                position: 'relative',
+                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                boxShadow: '0 20px 40px rgba(0,0,0,0.3)'
+                            }} className="stylist-card-highlight">
+                                <img 
+                                    src={persona.image} 
+                                    alt={persona.name} 
+                                    style={{ 
+                                        width: '100%', 
+                                        height: '100%', 
+                                        objectFit: 'cover', 
+                                        transition: 'all 500ms var(--ease-editorial)',
+                                        filter: 'grayscale(0)'
+                                    }} 
+                                    className="card-image"
+                                />
+                                <CatalogLabel title={persona.name} subtitle={persona.specialty} />
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </section>
+
+            <FeatureGrid />
+
+            {/* SECTION 3: FINAL CTA */}
+            <section id="footer-cta" className="neon-grid-bg" style={{
+                padding: '160px 40px',
+                display: 'flex',
+                justifyContent: 'center',
+                alignItems: 'center',
+                background: 'transparent'
+            }}>
+                <div style={{
+                    width: '100%',
+                    maxWidth: '800px',
+                    background: 'var(--color-acid-lime)',
+                    padding: '80px 40px',
+                    borderRadius: '32px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '40px',
+                    textAlign: 'center'
+                }}>
+                    <h2 style={{
+                        fontFamily: 'var(--font-acid-heading)',
+                        fontSize: 'clamp(2.5rem, 8vw, 5rem)',
+                        fontWeight: 900,
+                        color: '#000',
+                        lineHeight: 0.85,
+                        margin: 0,
+                        letterSpacing: '-0.04em',
+                        textTransform: 'uppercase'
+                    }}>
+                        STOP GUESSING YOUR FIT
+                    </h2>
+                    
+                    <p style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: '14px',
+                        color: 'rgba(0,0,0,0.6)',
+                        maxWidth: '400px',
+                        margin: 0,
+                        lineHeight: 1.4,
+                        fontWeight: 600
+                    }}>
+                        Get professional unfiltered fashion direction with our 3D AI Agents
+                    </p>
+
+                    <button 
+                        onClick={() => scrollToSection('hero')}
+                        style={{
+                            background: '#000',
+                            color: 'var(--color-acid-lime)',
+                            padding: '18px 48px',
+                            borderRadius: '999px',
+                            border: 'none',
+                            fontSize: '11px',
+                            fontFamily: 'var(--font-mono)',
+                            fontWeight: 900,
+                            cursor: 'pointer',
+                            textTransform: 'uppercase',
+                            transition: 'all 300ms var(--ease-editorial)'
+                        }} className="cta-btn-hover">
+                        GET STARTED
+                    </button>
+                </div>
+            </section>
+            
+            <style jsx>{`
+                .landing-overlay.exiting {
+                    transform: translateY(-20px);
+                }
+                .grayscale-to-color {
+                    filter: grayscale(0.2);
+                    transition: all 500ms var(--ease-editorial);
+                }
+                .card-hover-scale:hover .grayscale-to-color {
+                    filter: grayscale(0) !important;
+                    transform: scale(1.05);
+                }
+                .hide-scrollbar::-webkit-scrollbar {
+                    display: none;
+                }
+                .cta-btn-hover:hover {
+                    background: var(--text-stone) !important;
+                    color: var(--bg-avant-black) !important;
+                }
+                .stylist-card-highlight {
+                    transition: all 400ms var(--ease-editorial);
+                }
+                .card-hover-scale:hover .stylist-card-highlight {
+                    border: 1px solid var(--color-acid-lime) !important;
+                    box-shadow: 0 0 15px rgba(206, 254, 0, 0.15);
+                }
+                .btn-brutal-hover:hover {
+                    background: #fff !important;
+                    transform: translateY(-2px);
+                    box-shadow: 0 10px 30px rgba(255, 255, 255, 0.1);
+                }
+            `}</style>
+        </div>
+    );
+}
+</file>
+
+<file path="src/app/page.tsx">
+'use client';
+
+import React from 'react';
+import LandingOverlay from '@/components/LandingOverlay';
+
+export default function HomePage() {
+  return (
+    <main className="app-container">
+      <LandingOverlay
+        exiting={false}
+      />
+    </main>
+  );
+}
+</file>
+
+<file path="src/components/VRMStage.tsx">
+'use client';
+
+import React, { useEffect, useRef, useState } from 'react';
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { HDRLoader } from 'three/examples/jsm/loaders/HDRLoader.js';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { GroundedSkybox } from 'three/examples/jsm/objects/GroundedSkybox.js';
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js';
+import { VisemeData } from '@/hooks/useAudioPlayback';
+
+interface VRMStageProps {
+    personaName: string;
+    agentVolumeRef: React.MutableRefObject<VisemeData>;
+    isThinking: boolean;
+    agentGesture: string | null;
+}
+
+/**
+ * EXPLICIT BONE MAPPING (Source -> Target)
+ */
+const MIXAMO_TO_AVATURN_MAP: Record<string, string> = {
+    'mixamorigHips': 'Hips',
+    'mixamorigSpine': 'Spine',
+    'mixamorigSpine1': 'Spine1',
+    'mixamorigSpine2': 'Spine2',
+    'mixamorigNeck': 'Neck',
+    'mixamorigHead': 'Head',
+    'mixamorigLeftShoulder': 'LeftShoulder',
+    'mixamorigLeftArm': 'LeftArm',
+    'mixamorigLeftForeArm': 'LeftForeArm',
+    'mixamorigLeftHand': 'LeftHand',
+    'mixamorigRightShoulder': 'RightShoulder',
+    'mixamorigRightArm': 'RightArm',
+    'mixamorigRightForeArm': 'RightForeArm',
+    'mixamorigRightHand': 'RightHand',
+    'mixamorigLeftUpLeg': 'LeftUpLeg',
+    'mixamorigLeftLeg': 'LeftLeg',
+    'mixamorigLeftFoot': 'LeftFoot',
+    'mixamorigRightUpLeg': 'RightUpLeg',
+    'mixamorigRightLeg': 'RightLeg',
+    'mixamorigRightFoot': 'RightFoot'
+};
+
+const AVATURN_TO_MIXAMO_MAP: Record<string, string> = {};
+Object.entries(MIXAMO_TO_AVATURN_MAP).forEach(([mix, ava]) => {
+    AVATURN_TO_MIXAMO_MAP[ava] = mix;
+});
+
+export default function VRMStage({ personaName, agentVolumeRef, isThinking, agentGesture }: VRMStageProps) {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
+    const mixerRef = useRef<THREE.AnimationMixer | null>(null);
+    const actionsRef = useRef<Record<string, THREE.AnimationAction>>({});
+    const activeActionRef = useRef<THREE.AnimationAction | null>(null);
+    const activeAnimNameRef = useRef<string>('idle');
+    const modelRef = useRef<THREE.Group | null>(null);
+    const faceMeshesRef = useRef<THREE.SkinnedMesh[]>([]);
+
+    const [debugError, setDebugError] = useState<string | null>(null);
+    const [isLoaded, setIsLoaded] = useState(false);
+    const [loadProgress, setLoadProgress] = useState(0);
+
+    useEffect(() => {
+        if (!canvasRef.current || !containerRef.current) return;
+        let isMounted = true;
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 1000);
+        camera.position.set(0, 1.2, 4.0); // Widen for full body
+
+        const renderer = new THREE.WebGLRenderer({
+            canvas: canvasRef.current,
+            alpha: true,
+            antialias: true,
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.outputColorSpace = THREE.SRGBColorSpace;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        rendererRef.current = renderer;
+
+        const handleResize = () => {
+            if (!containerRef.current) return;
+            const w = containerRef.current.clientWidth;
+            const h = containerRef.current.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        };
+        handleResize();
+        window.addEventListener('resize', handleResize);
+
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.target.set(0, 0.8, 0); // Center on body
+        controls.enableDamping = true;
+        controls.update();
+
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(5, 5, 5);
+        scene.add(dirLight);
+
+        // Env
+        new HDRLoader().load('/backgrounds/ahornsteig_4k.hdr', (texture) => {
+            if (!isMounted) return;
+            texture.mapping = THREE.EquirectangularReflectionMapping;
+            scene.environment = texture;
+            const skybox = new GroundedSkybox(texture, 1.6, 100);
+            skybox.position.y = 1.6;
+            scene.add(skybox);
+        });
+
+        const gltfLoader = new GLTFLoader();
+        const fbxLoader = new FBXLoader();
+        const safePersona = (personaName || 'tony').toLowerCase();
+
+        gltfLoader.load(`/models/${safePersona}.glb`, (gltf) => {
+            if (!isMounted) return;
+            const model = gltf.scene;
+            modelRef.current = model;
+            scene.add(model);
+
+            // Discovery
+            const discoveredFaceMeshes: THREE.SkinnedMesh[] = [];
+            let targetSkinnedMesh: THREE.SkinnedMesh | null = null;
+            model.traverse((child) => {
+                if ((child as any).isSkinnedMesh) {
+                    const sm = child as THREE.SkinnedMesh;
+                    
+                    if (!targetSkinnedMesh && sm.skeleton) targetSkinnedMesh = sm;
+                    
+                    // FIX: Identify ALL meshes that need facial animation (Head, Teeth, Tongue)
+                    if (sm.morphTargetDictionary) {
+                        const hasMouthMorphs = 
+                            sm.morphTargetDictionary['jawOpen'] !== undefined || 
+                            sm.morphTargetDictionary['viseme_aa'] !== undefined ||
+                            sm.morphTargetDictionary['mouthOpen'] !== undefined ||
+                            sm.morphTargetDictionary['v_aa'] !== undefined ||
+                            sm.morphTargetDictionary['MouthOpen'] !== undefined;
+                            
+                        if (hasMouthMorphs) {
+                            discoveredFaceMeshes.push(sm);
+                        }
+                    }
+                }
+            });
+            faceMeshesRef.current = discoveredFaceMeshes;
+
+            if (!targetSkinnedMesh) {
+                setDebugError('No SkinnedMesh found in GLB');
+                return;
+            }
+
+            const mixer = new THREE.AnimationMixer(model);
+            mixerRef.current = mixer;
+
+            const bbox = new THREE.Box3().setFromObject(model);
+            model.position.y = -bbox.min.y;
+
+            const animFiles = [
+                { name: 'idle', file: 'Breathing Idle.fbx' },
+                { name: 'talking_1', file: 'Talking.fbx' },
+                { name: 'talking_2', file: 'Talking (1).fbx' },
+                { name: 'victory', file: 'Victory.fbx' }
+            ];
+
+            animFiles.forEach((cfg) => {
+                fbxLoader.load(`/animations/${cfg.file}`, (fbx) => {
+                    if (!isMounted) return;
+                    try {
+                        const sourceClip = fbx.animations[0];
+                        if (!sourceClip) return;
+
+                        // ROBUST SKELETON SOURCE
+                        // retargetClip REQUIRES the 2nd argument to have a .skeleton property.
+                        let sourceObj: any = null;
+                        fbx.traverse(c => {
+                            if ((c as any).isSkinnedMesh && (c as THREE.SkinnedMesh).skeleton) sourceObj = c;
+                        });
+
+                        // Surrogate if no SkinnedMesh found
+                        if (!sourceObj) {
+                            const bones: THREE.Bone[] = [];
+                            fbx.traverse(c => { if ((c as any).isBone) bones.push(c as THREE.Bone); });
+
+                            // FIX: Attach the skeleton directly to the FBX group root.
+                            // This allows the internal AnimationMixer in retargetClip to properly
+                            // find and animate the bone hierarchy during the sampling phase.
+                            const skeleton = new THREE.Skeleton(bones);
+                            (fbx as any).skeleton = skeleton;
+                            sourceObj = fbx;
+                        }
+
+                        // CRITICAL ARGUMENT FIX:
+                        // 1st arg MUST be an Object3D (e.g. SkinnedMesh), NOT a Skeleton.
+                        // SkeletonUtils.retargetClip internally calls target.skeleton!
+                        const retargetedClip = SkeletonUtils.retargetClip(targetSkinnedMesh!, sourceObj, sourceClip, {
+                            names: AVATURN_TO_MIXAMO_MAP,
+                            hip: 'mixamorigHips'
+                        });
+
+                        // Normalization
+                        retargetedClip.tracks.forEach(track => {
+                            const match = track.name.match(/\.bones\[([^\]]+)\]\.(.+)/);
+                            if (match) track.name = `${match[1]}.${match[2]}`;
+                            if (track.name.toLowerCase().includes('position')) {
+                                for (let i = 0; i < track.values.length; i++) track.values[i] *= 0.01;
+                            }
+                        });
+
+                        const action = mixer.clipAction(retargetedClip);
+                        actionsRef.current[cfg.name] = action;
+
+                        if (cfg.name === 'idle') {
+                            action.play();
+                            activeActionRef.current = action;
+                            setDebugError(null); // Clear errors on success
+                            
+                            // FADE OUT LOADING SCREEN
+                            setTimeout(() => {
+                                setIsLoaded(true);
+                            }, 800);
+                        }
+                    } catch (e: any) {
+                        console.error(`[VRMStage] Retargeting failed:`, e);
+                        setDebugError(`Anim Error: ${e.message}`);
+                    }
+                }, (xhr) => {
+                    if (cfg.name === 'idle' && xhr.total > 0) {
+                        setLoadProgress(Math.floor((xhr.loaded / xhr.total) * 100));
+                    }
+                });
+            });
+        }, (xhr) => {
+            setLoadProgress(Math.floor((xhr.loaded / xhr.total) * 100));
+        }, (err) => {
+            setDebugError(`GLB Error: ${err}`);
+        });
+
+        // GROUND GLOW (Acid Lime aesthetic)
+        const groundGlowGeo = new THREE.CircleGeometry(2, 32);
+        const groundGlowMat = new THREE.MeshBasicMaterial({
+            color: 0xCEFE00,
+            transparent: true,
+            opacity: 0.1,
+            side: THREE.DoubleSide
+        });
+        const groundGlow = new THREE.Mesh(groundGlowGeo, groundGlowMat);
+        groundGlow.rotation.x = -Math.PI / 2;
+        groundGlow.position.y = 0.01;
+        scene.add(groundGlow);
+
+        // Loop
+        let frameId: number;
+        let lastTime = performance.now();
+
+        const animate = () => {
+            if (!isMounted) return;
+            frameId = requestAnimationFrame(animate);
+
+            const now = performance.now();
+            const dt = Math.min((now - lastTime) / 1000, 0.1);
+            lastTime = now;
+
+            if (mixerRef.current) {
+                mixerRef.current.update(dt);
+            }
+
+            // LIP SYNC & BLINKING (Multi-Mesh Sync + Magic Clamp + Fast Attack)
+            const meshes = faceMeshesRef.current;
+            if (meshes.length > 0) {
+                const volData = agentVolumeRef.current;
+                const vol = volData.volume || 0;
+                
+                meshes.forEach((mesh) => {
+                    const dict = mesh.morphTargetDictionary;
+                    const inf = mesh.morphTargetInfluences;
+                    if (!dict || !inf) return;
+
+                    const setMorph = (name: string, val: number, decaySpeed = 0.3) => {
+                        const idx = dict[name];
+                        if (idx !== undefined) {
+                            const safeVal = Math.max(0, Math.min(1, val));
+                            const currentInf = inf[idx];
+                            
+                            // PRO ANIMATION TRICK: Fast Attack, Slow Decay
+                            // If opening (val > current), snap fast (0.8) to hit the audio cue instantly.
+                            // If closing (val < current), glide smoothly (decaySpeed) to prevent jitter.
+                            const dynamicSpeed = safeVal > currentInf ? 0.8 : decaySpeed;
+                            
+                            inf[idx] = THREE.MathUtils.lerp(currentInf, safeVal, dynamicSpeed);
+                        }
+                    };
+
+                    // 1. Barely use jawOpen so it doesn't stack on top of the precise vowels
+                    setMorph('jawOpen', vol * 0.1, 0.4);
+                    setMorph('mouthOpen', 0, 0.4); 
+
+                    // 2. Visemes (Bumped intensity to 0.85 for clearer articulation)
+                    const intensity = 0.85;
+                    const decay = 0.4; // Smooth closing speed
+
+                    setMorph('v_aa', (volData.a || 0) * intensity, decay);
+                    setMorph('v_ih', (volData.i || 0) * intensity, decay);
+                    setMorph('v_ou', (volData.u || 0) * intensity, decay);
+                    
+                    // Safety mappings for E and O
+                    if (dict['viseme_aa'] !== undefined) setMorph('viseme_aa', (volData.a || 0) * intensity, decay);
+                    if (dict['viseme_E'] !== undefined) setMorph('viseme_E', (volData.e || 0) * intensity, decay);
+                    if (dict['viseme_O'] !== undefined) setMorph('viseme_O', (volData.o || 0) * intensity, decay);
+                    if (dict['v_ee'] !== undefined) setMorph('v_ee', (volData.e || 0) * intensity, decay);
+                    if (dict['v_oh'] !== undefined) setMorph('v_oh', (volData.o || 0) * intensity, decay);
+
+                    const now = performance.now();
+                    const blink = (now % 4000) < 150 ? 1 : 0;
+                    setMorph('eyeBlinkLeft', blink, 0.5);
+                    setMorph('eyeBlinkRight', blink, 0.5);
+                });
+
+                // ── Body Dynamic Talk State ──────────────────────
+                const isSpeaking = vol > 0.05;
+                if (isSpeaking && activeAnimNameRef.current === 'idle') {
+                    const next = Math.random() > 0.5 ? 'talking_1' : 'talking_2';
+                    const action = actionsRef.current[next];
+                    if (action && activeActionRef.current) {
+                        action.reset().setEffectiveWeight(1).fadeIn(0.2).play();
+                        activeActionRef.current.fadeOut(0.2);
+                        activeActionRef.current = action;
+                        activeAnimNameRef.current = next;
+                    }
+                } else if (!isSpeaking && activeAnimNameRef.current.startsWith('talking')) {
+                    const idle = actionsRef.current['idle'];
+                    if (idle && activeActionRef.current) {
+                        idle.reset().setEffectiveWeight(1).fadeIn(0.4).play();
+                        activeActionRef.current.fadeOut(0.4);
+                        activeActionRef.current = idle;
+                        activeActionRef.current = idle;
+                        activeAnimNameRef.current = 'idle';
+                    }
+                }
+            }
+
+            controls.update();
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        return () => {
+            isMounted = false;
+            cancelAnimationFrame(frameId);
+            renderer.dispose();
+            controls.dispose();
+        };
+    }, [personaName]);
+
+    // Gestures
+    useEffect(() => {
+        if (!agentGesture) return;
+        const action = actionsRef.current[agentGesture];
+        if (action && activeActionRef.current) {
+            action.reset().setLoop(THREE.LoopOnce, 1).setEffectiveWeight(1).fadeIn(0.2).play();
+            activeActionRef.current.fadeOut(0.2);
+
+            const duration = action.getClip().duration * 1000;
+            setTimeout(() => {
+                const idle = actionsRef.current['idle'];
+                if (idle && activeActionRef.current === action) {
+                    idle.reset().fadeIn(0.5).play();
+                    action.fadeOut(0.5);
+                    activeActionRef.current = idle;
+                    activeAnimNameRef.current = 'idle';
+                }
+            }, duration);
+
+            activeActionRef.current = action;
+            activeAnimNameRef.current = agentGesture;
+        }
+    }, [agentGesture]);
+
+    return (
+        <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'absolute', inset: 0, background: '#060606' }}>
+            {/* LAZY LOAD OVERLAY */}
+            {!isLoaded && (
+                <div style={{
+                    position: 'absolute', inset: 0, zIndex: 1000,
+                    background: '#060606', display: 'flex', flexDirection: 'column',
+                    alignItems: 'center', justifyContent: 'center', gap: '2rem',
+                    transition: 'opacity 0.8s ease'
+                }}>
+                    <div style={{ position: 'relative', width: '200px', height: '2px', background: 'rgba(255,255,255,0.05)' }}>
+                        <div style={{
+                            position: 'absolute', top: 0, left: 0, height: '100%',
+                            width: `${loadProgress}%`, background: '#CEFE00',
+                            boxShadow: '0 0 15px rgba(206, 254, 0, 0.5)',
+                            transition: 'width 0.3s ease'
+                        }} />
+                    </div>
+                    <div style={{
+                        fontSize: '0.7rem', color: '#CEFE00', fontWeight: 800,
+                        letterSpacing: '0.2em', textTransform: 'uppercase'
+                    }}>
+                        Initializing Session... {loadProgress}%
+                    </div>
+                </div>
+            )}
+
+            {debugError && (
+                <div style={{ 
+                    position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
+                    color: '#fff', background: 'rgba(0,0,0,0.8)', 
+                    padding: '12px 24px', zIndex: 10000, borderRadius: '12px',
+                    border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)',
+                    fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '12px'
+                }}>
+                    <span style={{ color: '#ff4d6a' }}>⚠</span> {debugError}
+                </div>
+            )}
+            <canvas ref={canvasRef} style={{ display: 'block', opacity: isLoaded ? 1 : 0, transition: 'opacity 1.5s ease' }} />
+        </div>
+    );
+}
+</file>
+
+</files>

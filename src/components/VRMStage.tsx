@@ -76,6 +76,7 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
             alpha: true,
             antialias: true,
         });
+
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.outputColorSpace = THREE.SRGBColorSpace;
         renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -128,18 +129,18 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
             model.traverse((child) => {
                 if ((child as any).isSkinnedMesh) {
                     const sm = child as THREE.SkinnedMesh;
-                    
+
                     if (!targetSkinnedMesh && sm.skeleton) targetSkinnedMesh = sm;
-                    
+
                     // FIX: Identify ALL meshes that need facial animation (Head, Teeth, Tongue)
                     if (sm.morphTargetDictionary) {
-                        const hasMouthMorphs = 
-                            sm.morphTargetDictionary['jawOpen'] !== undefined || 
+                        const hasMouthMorphs =
+                            sm.morphTargetDictionary['jawOpen'] !== undefined ||
                             sm.morphTargetDictionary['viseme_aa'] !== undefined ||
                             sm.morphTargetDictionary['mouthOpen'] !== undefined ||
                             sm.morphTargetDictionary['v_aa'] !== undefined ||
                             sm.morphTargetDictionary['MouthOpen'] !== undefined;
-                            
+
                         if (hasMouthMorphs) {
                             discoveredFaceMeshes.push(sm);
                         }
@@ -217,7 +218,7 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
                             action.play();
                             activeActionRef.current = action;
                             setDebugError(null); // Clear errors on success
-                            
+
                             // FADE OUT LOADING SCREEN
                             setTimeout(() => {
                                 setIsLoaded(true);
@@ -273,7 +274,7 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
             if (meshes.length > 0) {
                 const volData = agentVolumeRef.current;
                 const vol = volData.volume || 0;
-                
+
                 meshes.forEach((mesh) => {
                     const dict = mesh.morphTargetDictionary;
                     const inf = mesh.morphTargetInfluences;
@@ -284,19 +285,19 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
                         if (idx !== undefined) {
                             const safeVal = Math.max(0, Math.min(1, val));
                             const currentInf = inf[idx];
-                            
+
                             // PRO ANIMATION TRICK: Fast Attack, Slow Decay
                             // If opening (val > current), snap fast (0.8) to hit the audio cue instantly.
                             // If closing (val < current), glide smoothly (decaySpeed) to prevent jitter.
                             const dynamicSpeed = safeVal > currentInf ? 0.8 : decaySpeed;
-                            
+
                             inf[idx] = THREE.MathUtils.lerp(currentInf, safeVal, dynamicSpeed);
                         }
                     };
 
                     // 1. Barely use jawOpen so it doesn't stack on top of the precise vowels
                     setMorph('jawOpen', vol * 0.1, 0.4);
-                    setMorph('mouthOpen', 0, 0.4); 
+                    setMorph('mouthOpen', 0, 0.4);
 
                     // 2. Visemes (Bumped intensity to 0.85 for clearer articulation)
                     const intensity = 0.85;
@@ -305,7 +306,7 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
                     setMorph('v_aa', (volData.a || 0) * intensity, decay);
                     setMorph('v_ih', (volData.i || 0) * intensity, decay);
                     setMorph('v_ou', (volData.u || 0) * intensity, decay);
-                    
+
                     // Safety mappings for E and O
                     if (dict['viseme_aa'] !== undefined) setMorph('viseme_aa', (volData.a || 0) * intensity, decay);
                     if (dict['viseme_E'] !== undefined) setMorph('viseme_E', (volData.e || 0) * intensity, decay);
@@ -350,6 +351,12 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
         return () => {
             isMounted = false;
             cancelAnimationFrame(frameId);
+
+            // 🔥 THE FIX: Force the browser to dump the WebGL context before disposing!
+            if (rendererRef.current) {
+                rendererRef.current.forceContextLoss();
+            }
+
             renderer.dispose();
             controls.dispose();
         };
@@ -407,9 +414,9 @@ export default function VRMStage({ personaName, agentVolumeRef, isThinking, agen
             )}
 
             {debugError && (
-                <div style={{ 
+                <div style={{
                     position: 'absolute', bottom: '2rem', left: '50%', transform: 'translateX(-50%)',
-                    color: '#fff', background: 'rgba(0,0,0,0.8)', 
+                    color: '#fff', background: 'rgba(0,0,0,0.8)',
                     padding: '12px 24px', zIndex: 10000, borderRadius: '12px',
                     border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(20px)',
                     fontSize: '0.8rem', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '12px'
