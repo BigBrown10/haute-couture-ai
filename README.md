@@ -31,6 +31,15 @@ The platform bridges the gap between AI intuition and high-end fashion design. I
 ## 🏗️ Architecture
 For a detailed look at the system architecture, see our [Platform Architecture Diagram](./platform_architecture.md).
 
+
+## The Magic 
+This is where Zaute stops being a critic and becomes a creator. Let’s say you tell Zaute, “I have a summer wedding to go to, and I want a flowing silk dress.”
+Zaute’s Gemini brain triggers a server-side function call. In the background, it invokes Gemini 3.1 Flash Image (Nano Banana 2).
+1. You upload an image.
+2. Nano Banana 2 uses its incredible multi-image fusion capabilities to composite the newly designed outfit directly onto your body.
+3. The UI updates dynamically, showing your new look on the right side of the screen.
+4. A studio functionality to edit images or even use VEO 3.1 to animate your images, with a single prompt, which I think is a great feature for fashion entrepreneurs to create content with their products
+
 ## 🏃 Getting Started
 
 ### Prerequisites
