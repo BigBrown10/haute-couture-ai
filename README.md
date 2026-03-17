@@ -1,4 +1,4 @@
-# Zaute AI — Brutally Honest 3D Fashion Designer
+# Zaute AI: Brutally Honest 3D Fashion Designer
 
 Welcome to **Zaute AI**, a state-of-the-art 3D fashion orchestration platform powered by Gemini 2.5 and Gemini 3.1. Zaute combines real-time multimodal interaction with high-fidelity fashion generation, allowing users to collaborate with AI stylists (like Gina and Despina) to create, critique, and visualize the future of fashion.
 
