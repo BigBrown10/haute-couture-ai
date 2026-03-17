@@ -75,4 +75,4 @@ Open [http://localhost:3100](http://localhost:3100) (or your configured port) to
 - **Studio Interface**: A premium, "brutally honest" environment for fashion exploration.
 
 ---
-*Created with ❤️ by the Zaute Collections team. Finalized by Antigravity AI.*
+*Created with ❤️ by the Zaute Collections team.*
